@@ -160,6 +160,18 @@ impl MarionetteConnection {
         Ok(())
     }
 
+    /// Go back to the previous page
+    pub fn go_back(&mut self) -> io::Result<()> {
+        let _: Empty = self.call("goBack", Empty {}).map_err(CallError::into_err)?;
+        Ok(())
+    }
+
+    /// Go forward to the next page in history
+    pub fn go_forward(&mut self) -> io::Result<()> {
+        let _: Empty = self.call("goForward", Empty {}).map_err(CallError::into_err)?;
+        Ok(())
+    }
+
     /// Get the page title
     pub fn get_title(&mut self) -> io::Result<String> {
         let resp: ResponseValue<_> = self.call("getTitle", Empty {}).map_err(CallError::into_err)?;
@@ -175,6 +187,11 @@ impl MarionetteConnection {
         Ok(())
     }
 
+    /// Get the page url
+    pub fn get_url(&mut self) -> io::Result<String> {
+        let resp: ResponseValue<_> = self.call("getCurrentUrl", Empty {}).map_err(CallError::into_err)?;
+        Ok(resp.value)
+    }
 }
 
 
