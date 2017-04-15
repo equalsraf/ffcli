@@ -1,0 +1,13 @@
+[package]
+name = "marionette"
+version = "0.1.0"
+authors = ["raf"]
+
+[dependencies]
+serde_json = "*"
+log = "0.3"
+serde_derive = "*"
+serde = "*"
+
+[dev-dependencies]
+env_logger = "*"

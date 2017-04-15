@@ -1,0 +1,20 @@
+language: rust
+rust:
+  - stable
+  - beta
+  - nightly
+matrix:
+  allow_failures:
+    - rust: nightly
+addons:
+  apt:
+    packages:
+    - firefox
+scrip:
+  # firefox can only have one active connection/session
+  # disable threading in tests to avoid failures
+  - export RUST_TEST_THREADS=1
+  - export RUST_LOG=marionette
+  - mkdir /tmp/test-firefox-profile
+  - firefox --new-instance --profile /tmp/test-firefox-profile --marionette
+  - cargo test --all --verbose
