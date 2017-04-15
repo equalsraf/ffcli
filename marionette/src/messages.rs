@@ -39,3 +39,31 @@ impl GetCommand {
         Self { url: url.to_owned() }
     }
 }
+
+/// A log message to push to the marionette server. The message
+/// includes an arbitrary level (INFO, DEBUG, etc).
+#[derive(Serialize, Debug)]
+pub struct LogMsg {
+    value: String,
+    level: String,
+}
+
+impl LogMsg {
+    pub fn new(msg: &str, lvl: &str) -> Self {
+        LogMsg {
+            value: msg.to_owned(),
+            level: lvl.to_owned(),
+        }
+    }
+}
+
+/// A log entry as returned by the getLogs command. This includes a message,
+/// an arbitrary log level and a date.
+#[derive(Deserialize, Debug)]
+pub struct LogEntry(String, String, String);
+
+impl LogEntry {
+    pub fn level(&self) -> &str { &self.0 }
+    pub fn msg(&self) -> &str { &self.1 }
+}
+

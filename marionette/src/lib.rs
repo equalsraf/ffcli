@@ -56,6 +56,7 @@ impl From<JsonError> for CallError {
 
 pub mod messages;
 use messages::*;
+pub use messages::{LogMsg};
 
 pub struct MarionetteConnection {
     reader: BufReader<TcpStream>,
@@ -191,6 +192,18 @@ impl MarionetteConnection {
     pub fn get_url(&mut self) -> io::Result<String> {
         let resp: ResponseValue<_> = self.call("getCurrentUrl", Empty {}).map_err(CallError::into_err)?;
         Ok(resp.value)
+    }
+
+    /// Store a log in the marionette server
+    pub fn log(&mut self, msg: LogMsg) -> io::Result<()> {
+        let _: Empty = self.call("log", msg).map_err(CallError::into_err)?;
+        Ok(())
+    }
+
+    /// Get all log entries from the server
+    pub fn get_logs(&mut self) -> io::Result<Vec<LogEntry>> {
+        let resp = self.call("getLogs", Empty {}).map_err(CallError::into_err)?;
+        Ok(resp)
     }
 }
 
