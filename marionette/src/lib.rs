@@ -19,6 +19,8 @@ use serde_json::Error as JsonError;
 extern crate serde;
 use serde::{Deserialize, Serialize};
 
+pub use serde_json::Value as JsonValue;
+
 #[derive(Debug)]
 enum CallError {
     Io(io::Error),
@@ -37,7 +39,7 @@ impl CallError {
             CallError::Io(err) => err,
             CallError::JSON(err) => Error::new(ErrorKind::InvalidData, err),
             CallError::Call(err) =>
-                Error::new(ErrorKind::InvalidData, format!("{}: {}", err.error, err.message)),
+                Error::new(ErrorKind::Other, format!("{}: {}", err.error, err.message)),
             _ => Error::new(ErrorKind::InvalidData, "Invalid response message"),
         }
     }
@@ -234,7 +236,16 @@ impl MarionetteConnection {
         let _: Empty = self.call("setContext", arg).map_err(CallError::into_err)?;
         Ok(())
     }
+
+    /// Execute the given script
+    ///
+    /// The return value is any JSON type returned by the script
+    pub fn execute_script(&mut self, script: &Script) -> io::Result<JsonValue> {
+        let resp: ResponseValue<_> = self.call("executeScript", script).map_err(CallError::into_err)?;
+        Ok(resp.value)
+    }
 }
+
 
 /// Execution context
 #[derive(Debug, PartialEq)]

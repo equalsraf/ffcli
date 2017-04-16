@@ -5,6 +5,7 @@
 
 use serde::{Serialize, Serializer};
 use serde::ser::SerializeStruct;
+use serde_json::Value;
 
 #[derive(Deserialize, Debug)]
 pub struct ServerInfo {
@@ -87,3 +88,24 @@ impl Serialize for WindowHandle {
 
 /// The execution context
 pub type ContextValue = ResponseValue<String>;
+
+#[derive(Serialize, Debug)]
+pub struct Script {
+    script: String,
+    args: Value,
+}
+
+impl Script {
+    pub fn new(src: &str) -> Self {
+        Script {
+            script: src.to_owned(),
+            args: Value::Null,
+        }
+    }
+
+    /// Set arguments for this script. This is usually an array that
+    /// is used as the `arguments` variable.
+    pub fn arguments<V: Into<Value>>(&mut self, args: V) {
+        self.args = args.into();
+    }
+}
