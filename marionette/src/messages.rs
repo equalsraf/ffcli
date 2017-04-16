@@ -28,7 +28,7 @@ pub struct Empty {}
 
 /// Some responses use a type wrapped in a json object
 /// with the value attribute
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct ResponseValue<T> {
     pub value: T,
 }
@@ -84,3 +84,6 @@ impl Serialize for WindowHandle {
         ss.end()
     }
 }
+
+/// The execution context
+pub type ContextValue = ResponseValue<String>;

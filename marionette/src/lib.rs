@@ -223,8 +223,46 @@ impl MarionetteConnection {
         let _: Empty = self.call("switchToWindow", win).map_err(CallError::into_err)?;
         Ok(())
     }
+
+    pub fn get_context(&mut self) -> io::Result<Context> {
+        let resp = self.call("getContext", Empty {}).map_err(CallError::into_err)?;
+        Context::from_value(resp)
+    }
+
+    pub fn set_context(&mut self, ctx: Context) -> io::Result<()> {
+        let arg: ContextValue = ctx.into();
+        let _: Empty = self.call("setContext", arg).map_err(CallError::into_err)?;
+        Ok(())
+    }
 }
 
+/// Execution context
+#[derive(Debug, PartialEq)]
+pub enum Context {
+    /// Web content, such as a frame
+    Content,
+    /// Browser specific context, alert dialogs and other windows
+    Chrome,
+}
+
+impl Context {
+    fn from_value(val: ContextValue) -> io::Result<Self> {
+        match val.value.as_ref() {
+            "chrome" => Ok(Context::Chrome),
+            "content" => Ok(Context::Content),
+            other => Err(Error::new(ErrorKind::InvalidData, format!("Unsupported context {}", other))),
+        }
+    }
+}
+
+impl Into<ContextValue> for Context {
+    fn into(self) -> ContextValue {
+        match self {
+            Context::Content => ContextValue { value: "content".to_owned() },
+            Context::Chrome => ContextValue { value: "chrome".to_owned() },
+        }
+    }
+}
 
 /// Read data in the format `length:data`. The entire frame must be valid UTF8.
 fn readframe<R: BufRead>(r: &mut R) -> Result<String, io::Error> {

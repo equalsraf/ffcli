@@ -14,3 +14,17 @@ fn windows() {
     }
 }
 
+#[test]
+fn context() {
+    let _ = env_logger::init();
+    let mut conn = MarionetteConnection::connect(2828).unwrap();
+
+    let ctx = conn.get_context().unwrap();
+
+    conn.set_context(Context::Chrome).unwrap();
+    assert_eq!(Context::Chrome, conn.get_context().unwrap());
+    conn.set_context(Context::Content).unwrap();
+    assert_eq!(Context::Content, conn.get_context().unwrap());
+
+    conn.set_context(ctx).unwrap();
+}
