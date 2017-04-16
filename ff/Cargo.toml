@@ -1,0 +1,23 @@
+[package]
+name = "ff"
+version = "0.1.0"
+authors = ["raf"]
+
+[dependencies]
+mozrunner = "0.3"
+mozprofile = "0.2"
+serde_json = "*"
+log = "0.3"
+mktemp = "0.3"
+marionette = {path = "../marionette"}
+clap = "2.0"
+url = "1.4"
+stderrlog = "0.2"
+
+[dev-dependencies]
+env_logger = "*"
+pulldown-cmark = { version = "0.0.14", default-features = false }
+
+[[bin]]
+name = "ff"
+doc = false
