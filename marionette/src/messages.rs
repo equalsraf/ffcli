@@ -3,6 +3,9 @@
 //!
 #![allow(non_snake_case)]
 
+use serde::{Serialize, Serializer};
+use serde::ser::SerializeStruct;
+
 #[derive(Deserialize, Debug)]
 pub struct ServerInfo {
     pub marionetteProtocol: u64,
@@ -67,3 +70,17 @@ impl LogEntry {
     pub fn msg(&self) -> &str { &self.1 }
 }
 
+/// An opaque handle to a window
+///
+/// This is deserialized from a regular string. But serialization creates
+/// an object `{'name': 'handle'}`.
+#[derive(Deserialize, Debug, PartialEq)]
+pub struct WindowHandle(String);
+
+impl Serialize for WindowHandle {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        let mut ss = s.serialize_struct("WindowHandle", 1)?;
+        ss.serialize_field("name", &self.0)?;
+        ss.end()
+    }
+}

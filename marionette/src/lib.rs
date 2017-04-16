@@ -205,6 +205,24 @@ impl MarionetteConnection {
         let resp = self.call("getLogs", Empty {}).map_err(CallError::into_err)?;
         Ok(resp)
     }
+
+    /// Returns the handle for the current window
+    pub fn get_window_handle(&mut self) -> io::Result<WindowHandle> {
+        let resp: ResponseValue<_> = self.call("getWindowHandle", Empty {}).map_err(CallError::into_err)?;
+        Ok(resp.value)
+    }
+
+    /// Returns a list of windows in the current context
+    pub fn get_window_handles(&mut self) -> io::Result<Vec<WindowHandle>> {
+        let resp: _ = self.call("getWindowHandles", Empty {}).map_err(CallError::into_err)?;
+        Ok(resp)
+    }
+
+    /// Switch to the specified window
+    pub fn switch_to_window(&mut self, win: &WindowHandle) -> io::Result<()> {
+        let _: Empty = self.call("switchToWindow", win).map_err(CallError::into_err)?;
+        Ok(())
+    }
 }
 
 
