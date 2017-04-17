@@ -288,6 +288,12 @@ impl MarionetteConnection {
         let resp: ResponseValue<_> = self.call("getElementText", arg).map_err(CallError::into_err)?;
         Ok(resp.value)
     }
+
+    /// Close the application
+    pub fn quit(mut self) -> io::Result<()> {
+        let _: Empty = self.call("quitApplication", Empty {}).map_err(CallError::into_err)?;
+        Ok(())
+    }
 }
 
 /// A helper struct to work with `ElementRef`
