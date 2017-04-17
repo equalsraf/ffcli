@@ -58,7 +58,7 @@ impl From<JsonError> for CallError {
 
 pub mod messages;
 use messages::*;
-pub use messages::{LogMsg};
+pub use messages::{LogMsg, QueryMethod};
 
 pub struct MarionetteConnection {
     reader: BufReader<TcpStream>,
@@ -244,8 +244,86 @@ impl MarionetteConnection {
         let resp: ResponseValue<_> = self.call("executeScript", script).map_err(CallError::into_err)?;
         Ok(resp.value)
     }
+
+    /// Returns the page source
+    pub fn get_page_source(&mut self) -> io::Result<String> {
+        let resp: ResponseValue<_> = self.call("getPageSource", Empty {}).map_err(CallError::into_err)?;
+        Ok(resp.value)
+    }
+
+    /// Returns a list of HTML elements that match the given target
+    pub fn find_elements(&mut self, method: QueryMethod, target: &str, inside: Option<&ElementRef>) -> io::Result<Vec<ElementRef>> {
+        let query = FindElementQuery {
+            value: target.to_owned(),
+            using: method,
+            element: inside.map(|elem| elem.reference.to_owned()),
+        };
+        let resp = self.call("findElements", query).map_err(CallError::into_err)?;
+        Ok(resp)
+    }
+
+    pub fn get_element_attribute(&mut self, elem: &ElementRef, attrname: &str) -> io::Result<String> {
+        let arg = ElementOp {
+            id: elem.reference.to_owned(),
+            name: Some(attrname.to_owned()),
+        };
+        let resp: ResponseValue<_> = self.call("getElementAttribute", arg).map_err(CallError::into_err)?;
+        Ok(resp.value)
+    }
+
+    pub fn get_element_property(&mut self, elem: &ElementRef, propname: &str) -> io::Result<String> {
+        let arg = ElementOp {
+            id: elem.reference.to_owned(),
+            name: Some(propname.to_owned()),
+        };
+        let resp: ResponseValue<_> = self.call("getElementProperty", arg).map_err(CallError::into_err)?;
+        Ok(resp.value)
+    }
+
+    pub fn get_element_text(&mut self, elem: &ElementRef) -> io::Result<String> {
+        let arg = ElementOp {
+            id: elem.reference.to_owned(),
+            name: None,
+        };
+        let resp: ResponseValue<_> = self.call("getElementText", arg).map_err(CallError::into_err)?;
+        Ok(resp.value)
+    }
 }
 
+/// A helper struct to work with `ElementRef`
+pub struct Element<'a> {
+    connection: &'a mut MarionetteConnection,
+    id: ElementRef,
+}
+
+impl<'a> Element<'a> {
+    pub fn new(connection: &'a mut MarionetteConnection, element: &ElementRef) -> Self {
+        Element {
+            connection: connection,
+            id: element.clone(),
+        }
+    }
+
+    /// Get element attribute
+    pub fn attr(&mut self, name: &str) -> io::Result<String> {
+        self.connection.get_element_attribute(&self.id, name)
+    }
+
+    /// Get element property
+    pub fn property(&mut self, name: &str) -> io::Result<String> {
+        self.connection.get_element_property(&self.id, name)
+    }
+
+    /// Get visible text for this element
+    pub fn text(&mut self) -> io::Result<String> {
+        self.connection.get_element_text(&self.id)
+    }
+
+    /// Find elements inside this element
+    pub fn find_elements(&mut self, method: QueryMethod, target: &str) -> io::Result<Vec<ElementRef>> {
+        self.connection.find_elements(method, target, Some(&self.id))
+    }
+}
 
 /// Execution context
 #[derive(Debug, PartialEq)]

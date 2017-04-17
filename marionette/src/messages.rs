@@ -3,9 +3,12 @@
 //!
 #![allow(non_snake_case)]
 
-use serde::{Serialize, Serializer};
+use std::fmt;
+use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use serde::ser::SerializeStruct;
 use serde_json::Value;
+use serde::de::{Visitor, MapVisitor};
+use serde::de::Error as DeError;
 
 #[derive(Deserialize, Debug)]
 pub struct ServerInfo {
@@ -109,3 +112,124 @@ impl Script {
         self.args = args.into();
     }
 }
+
+#[derive(Debug)]
+pub enum QueryMethod {
+    Id,
+    Name,
+    ClassName,
+    TagName,
+    CssSelector,
+    LinkText,
+    PartialLinkText,
+    XPath,
+}
+
+impl Serialize for QueryMethod {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        match self {
+            &QueryMethod::Id => s.serialize_str("id"),
+            &QueryMethod::Name => s.serialize_str("name"),
+            &QueryMethod::ClassName => s.serialize_str("class name"),
+            &QueryMethod::TagName => s.serialize_str("tag name"),
+            &QueryMethod::CssSelector => s.serialize_str("css selector"),
+            &QueryMethod::LinkText => s.serialize_str("link text"),
+            &QueryMethod::PartialLinkText => s.serialize_str("partial link text"),
+            &QueryMethod::XPath => s.serialize_str("xpath"),
+        }
+    }
+}
+
+#[derive(Serialize, Debug)]
+pub struct FindElementQuery {
+    /// A query
+    pub value: String,
+    /// The method use to perform the query
+    pub using: QueryMethod,
+    pub element: Option<String>,
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub struct ElementRef {
+    pub reference: String,
+}
+
+impl ElementRef {
+    pub fn from_str(handle: &str) -> ElementRef {
+        ElementRef { reference: handle.to_string() }
+    }
+}
+
+impl Deserialize for ElementRef {
+    fn deserialize<D: Deserializer>(d: D) -> Result<Self, D::Error> {
+        enum Field { Reference, Ignored };
+
+        impl Deserialize for Field {
+            fn deserialize<D: Deserializer>(d: D) -> Result<Self, D::Error> {
+                struct FieldVisitor;
+                impl Visitor for FieldVisitor {
+                    type Value = Field;
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("element-6066-11e4-a52e-4f735466cecf")
+                    }
+
+                    fn visit_str<E: DeError>(self, value: &str) -> Result<Field, E>
+                    {
+                        match value {
+                            "element-6066-11e4-a52e-4f735466cecf" => Ok(Field::Reference),
+                            // Ignore all other fields
+                            _ => Ok(Field::Ignored),
+                        }
+                    }
+                }
+
+                d.deserialize_struct_field(FieldVisitor)
+            }
+        }
+
+        struct ElementRefVisitor;
+        impl Visitor for ElementRefVisitor {
+            type Value = ElementRef;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("struct ElementRef")
+            }
+
+            fn visit_map<V>(self, mut visitor: V) -> Result<ElementRef, V::Error>
+                where V: MapVisitor
+            {
+                let mut reference = None;
+                while let Some(key) = visitor.visit_key()? {
+                    match key {
+                        Field::Reference => {
+                            if reference.is_some() {
+                                return Err(DeError::duplicate_field("element-6066-11e4-a52e-4f735466cecf"));
+                            }
+                            reference = Some(visitor.visit_value()?);
+                        }
+                        Field::Ignored => (),
+                    }
+                }
+                match reference {
+                    Some(r) => Ok(ElementRef { reference: r }),
+                    None => return Err(DeError::missing_field("element-6066-11e4-a52e-4f735466cecf")),
+                }
+            }
+        }
+
+        const FIELDS: &'static [&'static str] = &["element-6066-11e4-a52e-4f735466cecf"];
+        d.deserialize_struct("ElementRef", FIELDS, ElementRefVisitor)
+    }
+}
+
+/// Element operations are use a named id to select the Element
+/// and other attributes to specify the operation.
+#[derive(Serialize, Debug)]
+pub struct ElementOp {
+    /// The element identifier
+    pub id: String,
+    /// The name of the attribute/property
+    pub name: Option<String>,
+}
+
+

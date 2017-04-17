@@ -23,3 +23,42 @@ fn script_arguments() {
     let res = conn.execute_script(&script).unwrap();
     assert_eq!(res, JsonValue::from(84));
 }
+
+#[test]
+fn page_source() {
+    let _ = env_logger::init();
+    let mut conn = MarionetteConnection::connect(2828).unwrap();
+
+    conn.get("https://www.youtube.com/watch?v=dQw4w9WgXcQ").unwrap();
+    let source = conn.get_page_source().unwrap();
+    println!("{}", source);
+}
+
+#[test]
+fn elements() {
+    let _ = env_logger::init();
+    let mut conn = MarionetteConnection::connect(2828).unwrap();
+
+    conn.get("https://www.youtube.com/watch?v=dQw4w9WgXcQ").unwrap();
+    let elements = conn.find_elements(QueryMethod::CssSelector, "body", None).unwrap();
+    assert!(!elements.is_empty());
+    let elements = conn.find_elements(QueryMethod::CssSelector, "video", Some(&elements[0])).unwrap();
+    assert!(!elements.is_empty());
+
+    let src = conn.get_element_attribute(&elements[0], "src").unwrap();
+    println!("{}", src);
+
+    let outer = conn.get_element_property(&elements[0], "outerHTML").unwrap();
+    println!("{}", outer);
+
+    let text = conn.find_elements(QueryMethod::CssSelector, "a", None).unwrap()
+        .iter()
+        .map(|elemref| Element::new(&mut conn, elemref).text().unwrap())
+        .next().unwrap();
+    println!("{}", text);
+
+    for element_ref in &conn.find_elements(QueryMethod::CssSelector, "a", None).unwrap()[..10] {
+        let mut a = Element::new(&mut conn, &element_ref);
+        println!("{}", a.text().unwrap());
+    }
+}
