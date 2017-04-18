@@ -364,6 +364,10 @@ fn readframe<R: BufRead>(r: &mut R) -> Result<String, io::Error> {
     let mut lenbuf = Vec::new();
     // Read length prefix
     let bytes = r.read_until(b':', &mut lenbuf)?;
+    if bytes == 0 {
+        return Err(Error::new(ErrorKind::InvalidData, "Invalid frame"));
+    }
+
     let len_str = str::from_utf8(&lenbuf[..bytes-1])
         .map_err(|_| Error::new(ErrorKind::InvalidData, "Invalid utf8 in frame length"))?;
     let len = usize::from_str_radix(len_str, 10)
