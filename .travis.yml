@@ -19,15 +19,18 @@ before_script:
   - /sbin/start-stop-daemon --start --quiet --pidfile /tmp/custom_xvfb_99.pid --make-pidfile --background --exec /usr/bin/Xvfb -- :99 -ac -screen 0 1280x1024x16
   - sleep 3 # give xvfb some time to start
   - export DISPLAY=:99.0
-  # Get firefox release 52.0
   - wget $FF_URL
+  - FNAME=$(basename $FF_URL)
   - echo "$CHECKSUM" | sha256sum -c
-  - tar axf firefox-52.0.2.tar.bz2
-  - firefox/firefox --marionette &
+  - tar axf $FNAME
+  - export PATH=$PWD/firefox:$PATH
+  - which firefox
+  - firefox --marionette &
 script:
   - cargo build --verbose --all
   # firefox can only have one active connection/session
   # disable threading in tests to avoid failures
   - export RUST_TEST_THREADS=1
-  - export RUST_LOG=marionette
+  - export RUST_LOG=marionette=debug,ff=debug
+  - export RUST_BACKTRACE=1
   - cargo test --all --verbose
