@@ -17,7 +17,8 @@ extern crate serde_json;
 use serde_json::{Value, from_str, from_value, to_value};
 use serde_json::Error as JsonError;
 extern crate serde;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
+use serde::de::DeserializeOwned;
 
 pub use serde_json::Value as JsonValue;
 
@@ -95,7 +96,7 @@ impl MarionetteConnection {
     }
 
     fn call<D, S>(&mut self, name: &str, args: S) -> Result<D, CallError> 
-            where D: Deserialize, S: Serialize {
+            where D: DeserializeOwned, S: Serialize {
         let mut cmdarr = Vec::new();
         let msgid = self.next_msgid();
         cmdarr.push(Value::from(0));

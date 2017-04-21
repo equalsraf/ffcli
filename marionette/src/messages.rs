@@ -7,7 +7,7 @@ use std::fmt;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use serde::ser::SerializeStruct;
 use serde_json::Value;
-use serde::de::{Visitor, MapVisitor};
+use serde::de::{Visitor, MapAccess};
 use serde::de::Error as DeError;
 
 #[derive(Deserialize, Debug)]
@@ -160,14 +160,14 @@ impl ElementRef {
     }
 }
 
-impl Deserialize for ElementRef {
-    fn deserialize<D: Deserializer>(d: D) -> Result<Self, D::Error> {
+impl<'a> Deserialize<'a> for ElementRef {
+    fn deserialize<D: Deserializer<'a>>(d: D) -> Result<Self, D::Error> {
         enum Field { Reference, Ignored };
 
-        impl Deserialize for Field {
-            fn deserialize<D: Deserializer>(d: D) -> Result<Self, D::Error> {
+        impl<'b> Deserialize<'b> for Field {
+            fn deserialize<D: Deserializer<'b>>(d: D) -> Result<Self, D::Error> {
                 struct FieldVisitor;
-                impl Visitor for FieldVisitor {
+                impl<'c> Visitor<'c> for FieldVisitor {
                     type Value = Field;
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
                         formatter.write_str("element-6066-11e4-a52e-4f735466cecf")
@@ -183,12 +183,12 @@ impl Deserialize for ElementRef {
                     }
                 }
 
-                d.deserialize_struct_field(FieldVisitor)
+                d.deserialize_identifier(FieldVisitor)
             }
         }
 
         struct ElementRefVisitor;
-        impl Visitor for ElementRefVisitor {
+        impl<'d> Visitor<'d> for ElementRefVisitor {
             type Value = ElementRef;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -196,16 +196,16 @@ impl Deserialize for ElementRef {
             }
 
             fn visit_map<V>(self, mut visitor: V) -> Result<ElementRef, V::Error>
-                where V: MapVisitor
+                where V: MapAccess<'d>
             {
                 let mut reference = None;
-                while let Some(key) = visitor.visit_key()? {
+                while let Some(key) = visitor.next_key()? {
                     match key {
                         Field::Reference => {
                             if reference.is_some() {
                                 return Err(DeError::duplicate_field("element-6066-11e4-a52e-4f735466cecf"));
                             }
-                            reference = Some(visitor.visit_value()?);
+                            reference = Some(visitor.next_value()?);
                         }
                         Field::Ignored => (),
                     }
