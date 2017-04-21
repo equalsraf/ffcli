@@ -64,7 +64,7 @@ impl Browser {
         let connection;
         let mut retry = 1;
         loop {
-            thread::sleep(Duration::new(retry, 0));
+            thread::sleep(Duration::new(retry*2, 0));
             if !runner.is_running() {
                 debug!("Firefox is not running!");
             }
