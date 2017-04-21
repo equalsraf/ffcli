@@ -1,5 +1,6 @@
 use std::str::FromStr;
 use std::io::Result;
+use std::env;
 
 extern crate ff;
 extern crate marionette;
@@ -9,8 +10,8 @@ use clap::{App, Arg, ArgMatches, SubCommand, AppSettings};
 extern crate stderrlog;
 extern crate url;
 
-fn cmd_start(port: u16, _: &ArgMatches) -> std::result::Result<ff::Browser, ff::RunnerError> {
-    let mut browser = ff::Browser::start(Some(port))?;
+fn cmd_start(port: Option<u16>, _: &ArgMatches) -> std::result::Result<ff::Browser, ff::RunnerError> {
+    let mut browser = ff::Browser::start(port)?;
     browser.kill_on_drop(false);
     println!("FF_PORT={}", browser.port());
     Ok(browser)
@@ -40,7 +41,7 @@ fn main() {
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .setting(AppSettings::VersionlessSubcommands)
         .arg(Arg::with_name("PORT")
-             .default_value("2828")
+             .takes_value(true)
              .long("port"))
         .arg(Arg::with_name("verbose")
              .help("Increases verbosity")
@@ -66,16 +67,20 @@ fn main() {
             .module(module_path!())
             .verbosity(matches.occurrences_of("verbose") as usize)
             .init()
-            .unwrap();
+            .expect("Unable to initialize stderr output");
 
-    let port = u16::from_str(matches.value_of("PORT").unwrap())
-        .expect("Invalid port");
+    let port_arg = matches.value_of("PORT")
+        .map(|val| val.to_owned())
+        .or_else(|| env::var("FF_PORT").ok())
+        .map(|ref s| u16::from_str(s).expect("Invalid port argument"));
 
     // start browser and exit
     if let Some(ref args) = matches.subcommand_matches("start") {
-        cmd_start(port, args).expect("Unable to start browser");
+        cmd_start(port_arg, args).expect("Unable to start browser");
         return;
     }
+
+    let port = port_arg.expect("No port given, use --port or $FF_PORT");
 
     let mut conn = MarionetteConnection::connect(port)
         .expect("Unable to connect to firefox");

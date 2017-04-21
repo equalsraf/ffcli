@@ -17,3 +17,10 @@ Finally you can close the browser with the `quit` command
 ```shelltest
 $ ff --port 2929 quit
 ```
+
+The `--port` option is not always convinient so you can use an environment variable `FF_PORT`.
+
+```shelltest
+$ FF_PORT=33333 ff start
+$ FF_PORT=33333 ff quit
+```
