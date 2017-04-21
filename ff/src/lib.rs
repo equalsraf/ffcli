@@ -33,19 +33,14 @@ impl Browser {
         
         // racy but see https://bugzilla.mozilla.org/show_bug.cgi?id=1240830
         // also used in geckodriver
-        let port = match port {
-            Some(p) => p,
-            None => {
-                TcpListener::bind(&("localhost", 0))
-                    .and_then(|stream| stream.local_addr())
-                    .map(|x| x.port())?
-            }
-        };
+        let portnum = TcpListener::bind(&("localhost", port.unwrap_or(0)))
+            .and_then(|stream| stream.local_addr())
+            .map(|x| x.port())?;
 
         {
             let mut prefs = profile.user_prefs()?;
-            prefs.insert("marionette.port", Pref::new(port as i64));
-            prefs.insert("marionette.defaultPrefs.port", Pref::new(port as i64));
+            prefs.insert("marionette.port", Pref::new(portnum as i64));
+            prefs.insert("marionette.defaultPrefs.port", Pref::new(portnum as i64));
             // Startup with a blank page
             prefs.insert("browser.startup.page", Pref::new(0 as i64));
             prefs.insert("browser.startup.homepage_override.mstone", Pref::new("ignore"));
@@ -61,7 +56,7 @@ impl Browser {
         let mut runner = FirefoxRunner::new(&bin, Some(profile))?;
         runner.start()?;
 
-        info!("Started firefox on port {}: {}", port,
+        info!("Started firefox on port {}: {}", portnum,
                runner.args().iter()
                    .fold(String::new(), |acc, ref x| acc + &x)
                );
@@ -73,13 +68,13 @@ impl Browser {
             if !runner.is_running() {
                 debug!("Firefox is not running!");
             }
-            match marionette::MarionetteConnection::connect(port) {
+            match marionette::MarionetteConnection::connect(portnum) {
                 Ok(conn) => {
                     connection = conn;
                     break;
                 }
                 Err(err) => {
-                    debug!("Failed to connect to firefox({}): {}", port, err);
+                    debug!("Failed to connect to firefox({}): {}", portnum, err);
                     if 4 <= retry {
                         return Err(err)?;
                     }
@@ -95,7 +90,7 @@ impl Browser {
             runner: runner,
             connection: connection,
             tmpdir: tmpdir.to_path_buf(),
-            port: port,
+            port: portnum,
             drop_browser: true,
         })
     }
