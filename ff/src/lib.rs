@@ -63,7 +63,11 @@ impl Browser {
 
         let bin = firefox_default_path().unwrap_or(PathBuf::from("firefox"));
         let mut runner = FirefoxRunner::new(&bin, Some(profile))?;
-        runner.args().push("--marionette".to_owned());
+        if cfg!(windows) {
+            runner.args().push("-marionette".to_owned());
+        } else {
+            runner.args().push("--marionette".to_owned());
+        }
         runner.start()?;
 
         info!("Started firefox on port {}: {}", portnum,
