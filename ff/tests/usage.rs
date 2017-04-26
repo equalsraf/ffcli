@@ -39,6 +39,26 @@ fn run_shell_command(cmd: &str) {
     }
 }
 
+#[cfg(windows)]
+fn run_shell_command(cmd: &str) {
+    let _ = env_logger::init();
+    debug!("executing doctest command: {}", cmd);
+    let mut child = Command::new("powershell")
+        .arg("-Command")
+        .arg(cmd)
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .spawn()
+        .expect(&format!("Failed to execute"));
+
+    let ecode = child.wait()
+        .expect("failed to wait on child command");
+
+    if !ecode.success() {
+        panic!("Command failed");
+    }
+}
+
 #[test]
 fn usage() {
     if let Some(path) = env::var_os("PATH") {
