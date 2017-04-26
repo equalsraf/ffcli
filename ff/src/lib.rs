@@ -29,6 +29,15 @@ impl Browser {
     pub fn start(port: Option<u16>) -> Result<Self, RunnerError> {
 
         let mut tmpdir = mktemp::Temp::new_dir()?;
+
+        // release tempdir here, because ultimately we may want to exit after
+        // launching firefox, in which case we cannot remove that tmp dir
+        //
+        // FIXME: we could release later, but in windows this causes errors because
+        // of https://github.com/samgiles/rs-mktemp/pull/5
+        // do it here even if we leak the tmpdir
+        tmpdir.release();
+
         let mut profile = Profile::new(Some(tmpdir.as_ref()))?;
         
         // racy but see https://bugzilla.mozilla.org/show_bug.cgi?id=1240830
@@ -84,9 +93,6 @@ impl Browser {
             retry += 1;
         }
 
-        // release tempdir here, because ultimately we may want to exit after
-        // launching firefox, in which case we cannot remove that tmp dir
-        tmpdir.release();
         Ok(Browser {
             runner: runner,
             connection: connection,
