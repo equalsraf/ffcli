@@ -4,7 +4,7 @@ use std::env;
 
 extern crate ff;
 extern crate marionette;
-use marionette::{MarionetteConnection, Element, JsonValue};
+use marionette::{MarionetteConnection, Element, JsonValue, WindowHandle};
 use marionette::QueryMethod::CssSelector;
 extern crate clap;
 use clap::{App, Arg, ArgMatches, SubCommand, AppSettings};
@@ -34,6 +34,18 @@ fn cmd_back(conn: &mut MarionetteConnection, _: &ArgMatches) -> Result<()> {
 
 fn cmd_forward(conn: &mut MarionetteConnection, _: &ArgMatches) -> Result<()> {
     conn.go_forward()
+}
+
+fn cmd_windows(conn: &mut MarionetteConnection, _: &ArgMatches) -> Result<()> {
+    let prev = conn.get_window_handle()?;
+    for win in conn.get_window_handles()? {
+        conn.switch_to_window(&win)?;
+        let title = conn.get_title()?;
+        println!("{} \"{}\"", win, title);
+    }
+
+    conn.switch_to_window(&prev)?;
+    Ok(())
 }
 
 /// Filter elements based on a selector, then map them to a string
@@ -112,6 +124,12 @@ fn main() {
                     .about("Print page url"))
         .subcommand(SubCommand::with_name("quit")
                     .about("Close the browser"))
+        .subcommand(SubCommand::with_name("windows")
+                    .about("List browser windows"))
+        .subcommand(SubCommand::with_name("switch")
+                    .arg(Arg::with_name("WINDOW")
+                         .required(true))
+                    .about("Switch browser window"))
         .get_matches();
 
     stderrlog::new()
@@ -154,6 +172,11 @@ fn main() {
         ("title", _) => println!("{}", conn.get_title().unwrap()),
         ("url", _) => println!("{}", conn.get_url().unwrap()),
         ("quit", _) => conn.quit().unwrap(),
+        ("switch", Some(ref args)) => {
+            let handle = WindowHandle::from_str(args.value_of("WINDOW").unwrap());
+            conn.switch_to_window(&handle).unwrap();
+        }
+        ("windows", Some(ref args)) => cmd_windows(&mut conn, args).unwrap(),
         _ => panic!("Unsupported command"),
     }
 }

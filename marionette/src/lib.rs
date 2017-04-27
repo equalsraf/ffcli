@@ -59,7 +59,7 @@ impl From<JsonError> for CallError {
 
 pub mod messages;
 use messages::*;
-pub use messages::{LogMsg, QueryMethod};
+pub use messages::{LogMsg, QueryMethod, WindowHandle};
 
 pub struct MarionetteConnection {
     reader: BufReader<TcpStream>,
@@ -176,7 +176,7 @@ impl MarionetteConnection {
         Ok(())
     }
 
-    /// Get the page title
+    /// Get the window title
     pub fn get_title(&mut self) -> io::Result<String> {
         let resp: ResponseValue<_> = self.call("getTitle", Empty {}).map_err(CallError::into_err)?;
         Ok(resp.value)

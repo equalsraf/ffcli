@@ -81,6 +81,18 @@ impl LogEntry {
 #[derive(Deserialize, Debug, PartialEq)]
 pub struct WindowHandle(String);
 
+impl WindowHandle {
+    pub fn from_str(handle: &str) -> Self {
+        WindowHandle(handle.to_owned())
+    }
+}
+
+impl fmt::Display for WindowHandle {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 impl Serialize for WindowHandle {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         let mut ss = s.serialize_struct("WindowHandle", 1)?;

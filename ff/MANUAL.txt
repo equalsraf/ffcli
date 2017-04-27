@@ -46,3 +46,14 @@ values are ignored.
 
 	$ ff property html scrollWidth
 	1907
+
+## Windows/tabs
+
+You can list the browser windows using the windows command
+
+	$ ff windows
+	8 "Google"
+	14 "New Tab"
+
+The id can be used with the switch command to switch tabs.
+
