@@ -43,3 +43,8 @@ all anchors
 
 	$ ff attr --skip-empty a href
 
+The property command is very similar to attr, however properties are JSON values. Strings are quoted, and null
+values are ignored.
+
+	$ ff property html scrollWidth
+	1907

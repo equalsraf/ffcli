@@ -4,7 +4,7 @@ use std::env;
 
 extern crate ff;
 extern crate marionette;
-use marionette::{MarionetteConnection, Element};
+use marionette::{MarionetteConnection, Element, JsonValue};
 use marionette::QueryMethod::CssSelector;
 extern crate clap;
 use clap::{App, Arg, ArgMatches, SubCommand, AppSettings};
@@ -36,7 +36,7 @@ fn cmd_forward(conn: &mut MarionetteConnection, _: &ArgMatches) -> Result<()> {
     conn.go_forward()
 }
 
-/// Several functions in marionette take an element ref and return a string
+/// Filter elements based on a selector, then map them to a string
 fn cmd_get_element_str_data<F>(conn: &mut MarionetteConnection, args: &ArgMatches, f: F) -> Result<()> 
         where F: Fn(&mut Element) -> Result<String> {
 
@@ -48,6 +48,20 @@ fn cmd_get_element_str_data<F>(conn: &mut MarionetteConnection, args: &ArgMatche
             continue;
         }
         println!("{}", text);
+    }
+    Ok(())
+}
+
+/// Filter elements based on a selector, then map them to a json value
+fn cmd_get_element_json_data<F>(conn: &mut MarionetteConnection, args: &ArgMatches, f: F) -> Result<()> 
+        where F: Fn(&mut Element) -> Result<JsonValue> {
+
+    for elemref in conn.find_elements(CssSelector, args.value_of("SELECTOR").unwrap(), None)? {
+        let mut elem = Element::new(conn, &elemref);
+        let val = f(&mut elem)?;
+        if val != JsonValue::Null {
+            println!("{}", val);
+        }
     }
     Ok(())
 }
@@ -88,6 +102,12 @@ fn main() {
                     .arg(Arg::with_name("ATTRNAME")
                          .required(true))
                     .about("Print element attribute"))
+        .subcommand(SubCommand::with_name("property")
+                    .arg(Arg::with_name("SELECTOR")
+                         .required(true))
+                    .arg(Arg::with_name("NAME")
+                         .required(true))
+                    .about("Print element property"))
         .subcommand(SubCommand::with_name("text")
                     .arg(Arg::with_name("skip-empty")
                          .long("skip-empty")
@@ -136,6 +156,10 @@ fn main() {
         ("attr", Some(ref args)) => {
             let attrname = args.value_of("ATTRNAME").unwrap();
             cmd_get_element_str_data(&mut conn, args, |e| e.attr(attrname)).unwrap();
+        }
+        ("property", Some(ref args)) => {
+            let propname = args.value_of("NAME").unwrap();
+            cmd_get_element_json_data(&mut conn, args, |e| e.property(propname)).unwrap();
         }
         ("title", _) => println!("{}", conn.get_title().unwrap()),
         ("url", _) => println!("{}", conn.get_url().unwrap()),
