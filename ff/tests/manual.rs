@@ -60,7 +60,7 @@ fn run_shell_command(cmd: &str) {
 }
 
 #[test]
-fn usage() {
+fn manual() {
     if let Some(path) = env::var_os("PATH") {
         let mut paths = env::split_paths(&path).collect::<Vec<_>>();
         paths.push(PathBuf::from("../target/debug/"));
@@ -69,7 +69,7 @@ fn usage() {
     }
 
     let mut data = String::new();
-    let mut f = File::open("USAGE.md").unwrap();
+    let mut f = File::open("MANUAL.txt").unwrap();
     f.read_to_string(&mut data).unwrap();
 
     let parser = Parser::new(&data);
