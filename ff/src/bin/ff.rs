@@ -61,6 +61,10 @@ fn main() {
                     .about("Go forward to the next page in history"))
         .subcommand(SubCommand::with_name("source")
                     .about("Print page source"))
+        .subcommand(SubCommand::with_name("title")
+                    .about("Print page title"))
+        .subcommand(SubCommand::with_name("url")
+                    .about("Print page url"))
         .subcommand(SubCommand::with_name("quit")
                     .about("Close the browser"))
         .get_matches();
@@ -92,6 +96,8 @@ fn main() {
         ("back", Some(ref args)) => cmd_back(&mut conn, args).unwrap(),
         ("forward", Some(ref args)) => cmd_forward(&mut conn, args).unwrap(),
         ("source", _) => println!("{}", conn.get_page_source().unwrap()),
+        ("title", _) => println!("{}", conn.get_title().unwrap()),
+        ("url", _) => println!("{}", conn.get_url().unwrap()),
         ("quit", _) => conn.quit().unwrap(),
         _ => panic!("Unsupported command"),
     }
