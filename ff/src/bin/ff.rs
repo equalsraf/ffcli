@@ -49,21 +49,27 @@ fn cmd_windows(conn: &mut MarionetteConnection, _: &ArgMatches) -> Result<()> {
 }
 
 /// Filter elements based on a selector, then map them to a string
-fn cmd_get_element_str_data<F>(conn: &mut MarionetteConnection, args: &ArgMatches, f: F) -> Result<()> 
+fn cmd_get_element_str_data<F>(conn: &mut MarionetteConnection, args: &ArgMatches, f: &F) -> Result<()>
         where F: Fn(&mut Element) -> Result<String> {
 
-    for elemref in conn.find_elements(CssSelector, args.value_of("SELECTOR").unwrap(), None)? {
+    let selector =  args.value_of("SELECTOR").unwrap();
+    for elemref in conn.find_elements(CssSelector, selector, None)? {
         let mut elem = Element::new(conn, &elemref);
         let text = f(&mut elem)?;
         if !text.is_empty() {
             println!("{}", text);
         }
     }
+
+    for frameref in conn.find_elements(CssSelector, "iframe", None)? {
+        conn.switch_to_frame(&frameref)?;
+        cmd_get_element_str_data(conn, args, f)?;
+    }
     Ok(())
 }
 
 /// Filter elements based on a selector, then map them to a json value
-fn cmd_get_element_json_data<F>(conn: &mut MarionetteConnection, args: &ArgMatches, f: F) -> Result<()> 
+fn cmd_get_element_json_data<F>(conn: &mut MarionetteConnection, args: &ArgMatches, f: &F) -> Result<()> 
         where F: Fn(&mut Element) -> Result<JsonValue> {
 
     for elemref in conn.find_elements(CssSelector, args.value_of("SELECTOR").unwrap(), None)? {
@@ -72,6 +78,11 @@ fn cmd_get_element_json_data<F>(conn: &mut MarionetteConnection, args: &ArgMatch
         if val != JsonValue::Null {
             println!("{}", val);
         }
+    }
+
+    for frameref in conn.find_elements(CssSelector, "iframe", None)? {
+        conn.switch_to_frame(&frameref)?;
+        cmd_get_element_json_data(conn, args, f)?;
     }
     Ok(())
 }
@@ -159,15 +170,19 @@ fn main() {
         ("back", Some(ref args)) => cmd_back(&mut conn, args).unwrap(),
         ("forward", Some(ref args)) => cmd_forward(&mut conn, args).unwrap(),
         ("source", _) => println!("{}", conn.get_page_source().unwrap()),
-        ("text", Some(ref args)) =>
-            cmd_get_element_str_data(&mut conn, args, |e| e.text()).unwrap(),
+        ("text", Some(ref args)) => {
+            cmd_get_element_str_data(&mut conn, args, &|e| e.text()).unwrap();
+            conn.switch_to_top_frame().unwrap();
+        }
         ("attr", Some(ref args)) => {
             let attrname = args.value_of("ATTRNAME").unwrap();
-            cmd_get_element_str_data(&mut conn, args, |e| e.attr(attrname)).unwrap();
+            cmd_get_element_str_data(&mut conn, args, &|e| e.attr(attrname)).unwrap();
+            conn.switch_to_top_frame().unwrap();
         }
         ("property", Some(ref args)) => {
             let propname = args.value_of("NAME").unwrap();
-            cmd_get_element_json_data(&mut conn, args, |e| e.property(propname)).unwrap();
+            cmd_get_element_json_data(&mut conn, args, &|e| e.property(propname)).unwrap();
+            conn.switch_to_top_frame().unwrap();
         }
         ("title", _) => println!("{}", conn.get_title().unwrap()),
         ("url", _) => println!("{}", conn.get_url().unwrap()),

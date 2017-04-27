@@ -244,4 +244,28 @@ pub struct ElementOp {
     pub name: Option<String>,
 }
 
+/// A `switchToFrame` request
+#[derive(Serialize, Debug)]
+pub struct FrameSwitch {
+    focus: bool,
+    element: Option<String>,
+}
+
+impl FrameSwitch {
+    /// Switch to the top level frame
+    pub fn top(focus: bool) -> Self {
+        FrameSwitch {
+            focus: focus,
+            element: None,
+        }
+    }
+
+    /// Switch to the frame given by passed element
+    pub fn from_element(focus: bool, element: &ElementRef) -> Self {
+        FrameSwitch {
+            focus: focus,
+            element: Some(element.reference.to_owned()),
+        }
+    }
+}
 

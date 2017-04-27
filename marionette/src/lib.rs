@@ -290,6 +290,18 @@ impl MarionetteConnection {
         Ok(resp.value)
     }
 
+    pub fn switch_to_frame(&mut self, elem: &ElementRef) -> io::Result<()> {
+        let arg = FrameSwitch::from_element(false, elem);
+        let _: Empty = self.call("switchToFrame", arg).map_err(CallError::into_err)?;
+        Ok(())
+    }
+
+    pub fn switch_to_top_frame(&mut self) -> io::Result<()> {
+        let arg = FrameSwitch::top(false);
+        let _: Empty = self.call("switchToFrame", arg).map_err(CallError::into_err)?;
+        Ok(())
+    }
+
     /// Close the application
     pub fn quit(mut self) -> io::Result<()> {
         let _: Empty = self.call("quitApplication", Empty {}).map_err(CallError::into_err)?;
