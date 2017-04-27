@@ -34,7 +34,7 @@ test_script:
   # We dont actually run the tests for the marionette crate, just for ff
   - cargo test --manifest-path ff/Cargo.toml --verbose
 
-after_build:
+after_test:
   # create a release binary
   - cargo build --manifest-path ff/Cargo.toml --release
 
