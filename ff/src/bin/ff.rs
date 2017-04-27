@@ -40,14 +40,12 @@ fn cmd_forward(conn: &mut MarionetteConnection, _: &ArgMatches) -> Result<()> {
 fn cmd_get_element_str_data<F>(conn: &mut MarionetteConnection, args: &ArgMatches, f: F) -> Result<()> 
         where F: Fn(&mut Element) -> Result<String> {
 
-    let skip_empty = args.is_present("skip-empty");
     for elemref in conn.find_elements(CssSelector, args.value_of("SELECTOR").unwrap(), None)? {
         let mut elem = Element::new(conn, &elemref);
         let text = f(&mut elem)?;
-        if skip_empty && text.is_empty() {
-            continue;
+        if !text.is_empty() {
+            println!("{}", text);
         }
-        println!("{}", text);
     }
     Ok(())
 }
@@ -93,10 +91,6 @@ fn main() {
         .subcommand(SubCommand::with_name("source")
                     .about("Print page source"))
         .subcommand(SubCommand::with_name("attr")
-                    .arg(Arg::with_name("skip-empty")
-                         .long("skip-empty")
-                         .short("S")
-                         .help("Skip empty results"))
                     .arg(Arg::with_name("SELECTOR")
                          .required(true))
                     .arg(Arg::with_name("ATTRNAME")
@@ -109,10 +103,6 @@ fn main() {
                          .required(true))
                     .about("Print element property"))
         .subcommand(SubCommand::with_name("text")
-                    .arg(Arg::with_name("skip-empty")
-                         .long("skip-empty")
-                         .short("S")
-                         .help("Skip empty results"))
                     .arg(Arg::with_name("SELECTOR")
                          .required(true))
                     .about("Print element text"))

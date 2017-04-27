@@ -34,14 +34,12 @@ a page, use the text command
 
 	$ ff text p
 
-Some elements may be empty, you can skip those with the option `--skip-empty`
-
-	$ ff text --skip-empty p
+Empty elements are not printed.
 
 The attr command is similar but gets the value in a named html attribute, for example to get the href attribute for
 all anchors
 
-	$ ff attr --skip-empty a href
+	$ ff attr a href
 
 The property command is very similar to attr, however properties are JSON values. Strings are quoted, and null
 values are ignored.
