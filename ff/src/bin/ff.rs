@@ -4,7 +4,8 @@ use std::env;
 
 extern crate ff;
 extern crate marionette;
-use marionette::MarionetteConnection;
+use marionette::{MarionetteConnection, Element};
+use marionette::QueryMethod::CssSelector;
 extern crate clap;
 use clap::{App, Arg, ArgMatches, SubCommand, AppSettings};
 extern crate stderrlog;
@@ -35,6 +36,22 @@ fn cmd_forward(conn: &mut MarionetteConnection, _: &ArgMatches) -> Result<()> {
     conn.go_forward()
 }
 
+/// Several functions in marionette take an element ref and return a string
+fn cmd_get_element_str_data<F>(conn: &mut MarionetteConnection, args: &ArgMatches, f: F) -> Result<()> 
+        where F: Fn(&mut Element) -> Result<String> {
+
+    let skip_empty = args.is_present("skip-empty");
+    for elemref in conn.find_elements(CssSelector, args.value_of("SELECTOR").unwrap(), None)? {
+        let mut elem = Element::new(conn, &elemref);
+        let text = f(&mut elem)?;
+        if skip_empty && text.is_empty() {
+            continue;
+        }
+        println!("{}", text);
+    }
+    Ok(())
+}
+
 fn main() {
     let matches = App::new("ff")
         .about("Firefox from your shell")
@@ -61,6 +78,24 @@ fn main() {
                     .about("Go forward to the next page in history"))
         .subcommand(SubCommand::with_name("source")
                     .about("Print page source"))
+        .subcommand(SubCommand::with_name("attr")
+                    .arg(Arg::with_name("skip-empty")
+                         .long("skip-empty")
+                         .short("S")
+                         .help("Skip empty results"))
+                    .arg(Arg::with_name("SELECTOR")
+                         .required(true))
+                    .arg(Arg::with_name("ATTRNAME")
+                         .required(true))
+                    .about("Print element attribute"))
+        .subcommand(SubCommand::with_name("text")
+                    .arg(Arg::with_name("skip-empty")
+                         .long("skip-empty")
+                         .short("S")
+                         .help("Skip empty results"))
+                    .arg(Arg::with_name("SELECTOR")
+                         .required(true))
+                    .about("Print element text"))
         .subcommand(SubCommand::with_name("title")
                     .about("Print page title"))
         .subcommand(SubCommand::with_name("url")
@@ -96,6 +131,12 @@ fn main() {
         ("back", Some(ref args)) => cmd_back(&mut conn, args).unwrap(),
         ("forward", Some(ref args)) => cmd_forward(&mut conn, args).unwrap(),
         ("source", _) => println!("{}", conn.get_page_source().unwrap()),
+        ("text", Some(ref args)) =>
+            cmd_get_element_str_data(&mut conn, args, |e| e.text()).unwrap(),
+        ("attr", Some(ref args)) => {
+            let attrname = args.value_of("ATTRNAME").unwrap();
+            cmd_get_element_str_data(&mut conn, args, |e| e.attr(attrname)).unwrap();
+        }
         ("title", _) => println!("{}", conn.get_title().unwrap()),
         ("url", _) => println!("{}", conn.get_url().unwrap()),
         ("quit", _) => conn.quit().unwrap(),
