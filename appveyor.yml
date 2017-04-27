@@ -31,6 +31,8 @@ test_script:
   - set RUST_TEST_THREADS=1
   - set RUST_LOG=marionette=debug,ff=debug
   - set RUST_BACKTRACE=1
+  # Some tests in the manual require an implicit port to run. Set it here
+  - set FF_PORT=44444
   # We dont actually run the tests for the marionette crate, just for ff
   - cargo test --manifest-path ff/Cargo.toml --verbose
 

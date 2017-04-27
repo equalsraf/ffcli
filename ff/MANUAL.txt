@@ -12,4 +12,13 @@ Finally you can close the browser with the `quit` command
 
 	$ ff --port 2929 quit
 
-The `--port` option is not always convinient, the environment variable `FF_PORT` can be used instead.
+The `--port` option is not always convinient, the environment variable `FF_PORT` can be used instead. If it is set
+the option is not needed
+
+	$ ff start
+
+To get the source of the current wepage use the `source` command
+
+	$ ff go google.com
+	$ ff source
+
