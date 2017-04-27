@@ -272,7 +272,7 @@ impl MarionetteConnection {
         Ok(resp.value)
     }
 
-    pub fn get_element_property(&mut self, elem: &ElementRef, propname: &str) -> io::Result<String> {
+    pub fn get_element_property(&mut self, elem: &ElementRef, propname: &str) -> io::Result<JsonValue> {
         let arg = ElementOp {
             id: elem.reference.to_owned(),
             name: Some(propname.to_owned()),
@@ -317,7 +317,7 @@ impl<'a> Element<'a> {
     }
 
     /// Get element property
-    pub fn property(&mut self, name: &str) -> io::Result<String> {
+    pub fn property(&mut self, name: &str) -> io::Result<JsonValue> {
         self.connection.get_element_property(&self.id, name)
     }
 

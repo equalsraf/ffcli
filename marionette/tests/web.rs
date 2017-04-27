@@ -62,3 +62,14 @@ fn elements() {
         println!("{}", a.text().unwrap());
     }
 }
+
+#[test]
+fn element_property_is_json() {
+    let _ = env_logger::init();
+    let mut conn = MarionetteConnection::connect(2828).unwrap();
+
+    let elements = conn.find_elements(QueryMethod::CssSelector, "html", None).unwrap();
+    assert!(!elements.is_empty());
+    let hidden = conn.get_element_property(&elements[0], "hidden").unwrap();
+    assert_eq!(hidden, JsonValue::Bool(false));
+}
