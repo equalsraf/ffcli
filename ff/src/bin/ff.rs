@@ -1,6 +1,7 @@
 use std::str::FromStr;
 use std::io::Result;
 use std::env;
+use std::process::{Command, Stdio};
 
 extern crate ff;
 extern crate marionette;
@@ -8,14 +9,57 @@ use marionette::{MarionetteConnection, Element, JsonValue, WindowHandle};
 use marionette::QueryMethod::CssSelector;
 extern crate clap;
 use clap::{App, Arg, ArgMatches, SubCommand, AppSettings};
+#[macro_use]
+extern crate log;
 extern crate stderrlog;
 extern crate url;
+#[cfg(unix)]
+extern crate chan_signal;
 
-fn cmd_start(port: Option<u16>, _: &ArgMatches) -> std::result::Result<ff::Browser, ff::RunnerError> {
-    let mut browser = ff::Browser::start(port)?;
-    browser.kill_on_drop(false);
-    println!("FF_PORT={}", browser.port());
-    Ok(browser)
+#[cfg(unix)]
+fn setup_signals() {
+    // For now Ignore SIGINT
+    chan_signal::notify(&[chan_signal::Signal::INT]);
+}
+#[cfg(not(unix))]
+fn setup_signals() {}
+
+fn cmd_start(port: Option<u16>, args: &ArgMatches) -> Result<()> {
+
+    // Check TCP port availability
+    let portnum = ff::check_tcp_port(port)?;
+
+    if args.is_present("no-fork") {
+        setup_signals();
+
+        let mut browser = ff::Browser::start(portnum)?;
+        debug!("New ff session {}", browser.session_file().to_string_lossy());
+
+        let status = browser.runner.process.wait()?;
+        info!("Firefox exited with status {}", status);
+    } else {
+        let mut args: Vec<_> = env::args().collect();
+        args.push("--no-fork".to_owned());
+        debug!("Spawning ff process {:?}", args);
+        Command::new(&args[0])
+            .env("FF_PORT", format!("{}", portnum))
+            .args(&args[1..])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .spawn()?;
+
+        ff::check_connection(portnum)?;
+        println!("FF_PORT={}", portnum);
+    }
+
+    Ok(())
+}
+
+fn cmd_instances() -> Result<()> {
+    for instance in ff::instances()? {
+        println!("{}", instance);
+    }
+    Ok(())
 }
 
 fn cmd_go(conn: &mut MarionetteConnection, args: &ArgMatches) -> Result<()> {
@@ -48,6 +92,8 @@ fn cmd_windows(conn: &mut MarionetteConnection, _: &ArgMatches) -> Result<()> {
     Ok(())
 }
 
+const FRAME_SELECTOR: &'static str = "iframe, frame";
+
 /// Filter elements based on a selector, then map them to a string
 fn cmd_get_element_str_data<F>(conn: &mut MarionetteConnection, args: &ArgMatches, f: &F) -> Result<()>
         where F: Fn(&mut Element) -> Result<String> {
@@ -61,7 +107,7 @@ fn cmd_get_element_str_data<F>(conn: &mut MarionetteConnection, args: &ArgMatche
         }
     }
 
-    for frameref in conn.find_elements(CssSelector, "iframe", None)? {
+    for frameref in conn.find_elements(CssSelector, FRAME_SELECTOR, None)? {
         conn.switch_to_frame(&frameref)?;
         cmd_get_element_str_data(conn, args, f)?;
     }
@@ -80,7 +126,7 @@ fn cmd_get_element_json_data<F>(conn: &mut MarionetteConnection, args: &ArgMatch
         }
     }
 
-    for frameref in conn.find_elements(CssSelector, "iframe", None)? {
+    for frameref in conn.find_elements(CssSelector, FRAME_SELECTOR, None)? {
         conn.switch_to_frame(&frameref)?;
         cmd_get_element_json_data(conn, args, f)?;
     }
@@ -101,6 +147,9 @@ fn main() {
              .multiple(true)
              .long("verbose"))
         .subcommand(SubCommand::with_name("start")
+                    .arg(Arg::with_name("no-fork")
+                         .help("Run ff in the foreground")
+                         .long("no-fork"))
                     .about("Start a new browser instance"))
         .subcommand(SubCommand::with_name("go")
                     .about("Navigate to URL")
@@ -129,6 +178,8 @@ fn main() {
                     .arg(Arg::with_name("SELECTOR")
                          .required(true))
                     .about("Print element text"))
+        .subcommand(SubCommand::with_name("instances")
+                    .about("List running ff instances"))
         .subcommand(SubCommand::with_name("title")
                     .about("Print page title"))
         .subcommand(SubCommand::with_name("url")
@@ -154,9 +205,12 @@ fn main() {
         .or_else(|| env::var("FF_PORT").ok())
         .map(|ref s| u16::from_str(s).expect("Invalid port argument"));
 
-    // start browser and exit
     if let Some(ref args) = matches.subcommand_matches("start") {
         cmd_start(port_arg, args).expect("Unable to start browser");
+        return;
+    }
+    if let Some(_) = matches.subcommand_matches("instances") {
+        cmd_instances().expect("Error listing ff instances");
         return;
     }
 

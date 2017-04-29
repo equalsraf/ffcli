@@ -1,59 +1,75 @@
 
 ff is a CLI to command the firefox browser. You can get a list of commands
-and options with the `help` command. Start the browser with:
+and options with the __help__ command.
+
+	$ ff help
+
+## Starting ff
+
+ff can be started with the __start__ command
+it in the background:
+
+	$ ff start
+	FF_PORT=36089
+
+The output displays the port where the browser instance is listening for commands.
+You can specify a specific port with the __port__ option
 
 	$ ff --port 2929 start
 
-You can open an URL with the `go` subcommand
+To list available browsers managed by ff, use the __instances__ command. The
+first part of the output is its listening port.
+
+	$ ff instances
+	36089/
+	2929/
+
+You can open an URL with the __go__ subcommand in the browser instance 2929
 
 	$ ff --port 2929 go www.google.com
 
-Finally you can close the browser with the `quit` command
+Finally you can close the browser with the __quit__ command
 
 	$ ff --port 2929 quit
 
-The `--port` option is not always convinient, the environment variable `FF_PORT` can be used instead. If it is set
-the option is not needed
-
-	$ ff start
+To avoid using the port option in every command you can set the environment variable 
+__$FF_PORT__ instead.
 
 ##  Getting page information
 
-To get the source of the current wepage use the `source` command
+To get the source of the current wepage use the __source__ command
 
 	$ ff go google.com
 	$ ff source
 
-Likewise for the title and url
+Likewise for the __title__ and __url__
 
 	$ ff title
 	$ ff url
 
-There are also commands to inspect web content. For example to print out all the text content for paragraph tags in
-a page, use the text command
+There are also commands to inspect web content. For example to print out all the text in paragraph tags, use the __text__ command
 
 	$ ff text p
 
 Empty elements are not printed.
 
-The attr command is similar but gets the value in a named html attribute, for example to get the href attribute for
-all anchors
+The __attr__ command gets the value in a named html attribute, for example to get the href attribute for all anchors
 
 	$ ff attr a href
 
-The property command is very similar to attr, however properties are JSON values. Strings are quoted, and null
-values are ignored.
+The __property__ command is similar to attr, however properties are JSON values. Strings are quoted, and null values are ignored.
 
 	$ ff property html scrollWidth
 	1907
 
 ## Windows/tabs
 
-You can list the browser windows using the windows command
+You can list the browser windows using the windows command, each line includes an id
+and the title of the window
 
 	$ ff windows
 	8 "Google"
 	14 "New Tab"
 
-The id can be used with the switch command to switch tabs.
+The id can be used with the switch command to switch windows.
 
