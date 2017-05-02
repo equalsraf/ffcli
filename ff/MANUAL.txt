@@ -15,7 +15,7 @@ it in the background:
 The output displays the port where the browser instance is listening for commands.
 You can specify a specific port with the __port__ option
 
-	$ ff --port 2929 start
+	$ ff start --port 2929
 
 To list available browsers managed by ff, use the __instances__ command. The
 first part of the output is its listening port.
@@ -26,11 +26,11 @@ first part of the output is its listening port.
 
 You can open an URL with the __go__ subcommand in the browser instance 2929
 
-	$ ff --port 2929 go www.google.com
+	$ ff go --port 2929 www.google.com
 
 Finally you can close the browser with the __quit__ command
 
-	$ ff --port 2929 quit
+	$ ff quit --port 2929
 
 To avoid using the port option in every command you can set the environment variable 
 __$FF_PORT__ instead.

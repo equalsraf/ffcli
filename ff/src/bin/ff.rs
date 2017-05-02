@@ -24,10 +24,14 @@ fn setup_signals() {
 #[cfg(not(unix))]
 fn setup_signals() {}
 
-fn cmd_start(port: Option<u16>, args: &ArgMatches) -> Result<()> {
+fn cmd_start(args: &ArgMatches) -> Result<()> {
+
+    let port_arg = args.value_of("PORT")
+        .map(|val| val.to_owned())
+        .map(|ref s| u16::from_str(s).expect("Invalid port argument"));
 
     // Check TCP port availability
-    let portnum = ff::check_tcp_port(port)?;
+    let portnum = ff::check_tcp_port(port_arg)?;
 
     if args.is_present("no-fork") {
         setup_signals();
@@ -40,9 +44,13 @@ fn cmd_start(port: Option<u16>, args: &ArgMatches) -> Result<()> {
     } else {
         let mut args: Vec<_> = env::args().collect();
         args.push("--no-fork".to_owned());
+        if port_arg.is_none() {
+            args.push("--port".to_owned());
+            args.push(format!("{}", portnum));
+        }
+
         debug!("Spawning ff process {:?}", args);
         Command::new(&args[0])
-            .env("FF_PORT", format!("{}", portnum))
             .args(&args[1..])
             .stdin(Stdio::null())
             .stdout(Stdio::null())
@@ -62,9 +70,10 @@ fn cmd_instances() -> Result<()> {
     Ok(())
 }
 
-fn cmd_go(conn: &mut MarionetteConnection, args: &ArgMatches) -> Result<()> {
+fn cmd_go(args: &ArgMatches) -> Result<()> {
     let url_arg = args.value_of("URL").unwrap();
 
+    let mut conn = connect_to_port(args);
     if let Err(url::ParseError::RelativeUrlWithoutBase) = url::Url::parse(url_arg) {
         conn.get(&("https://".to_owned() + url_arg))
     } else {
@@ -72,15 +81,8 @@ fn cmd_go(conn: &mut MarionetteConnection, args: &ArgMatches) -> Result<()> {
     }
 }
 
-fn cmd_back(conn: &mut MarionetteConnection, _: &ArgMatches) -> Result<()> {
-    conn.go_back()
-}
-
-fn cmd_forward(conn: &mut MarionetteConnection, _: &ArgMatches) -> Result<()> {
-    conn.go_forward()
-}
-
-fn cmd_windows(conn: &mut MarionetteConnection, _: &ArgMatches) -> Result<()> {
+fn cmd_windows(args: &ArgMatches) -> Result<()> {
+    let mut conn = connect_to_port(args);
     let prev = conn.get_window_handle()?;
     for win in conn.get_window_handles()? {
         conn.switch_to_window(&win)?;
@@ -133,6 +135,24 @@ fn cmd_get_element_json_data<F>(conn: &mut MarionetteConnection, args: &ArgMatch
     Ok(())
 }
 
+/// Panics unless --port of $FF_PORT is a valid port number
+fn connect_to_port(args: &ArgMatches) -> MarionetteConnection {
+    let port_arg = args.value_of("PORT")
+        .map(|val| val.to_owned())
+        .or_else(|| env::var("FF_PORT").ok())
+        .map(|ref s| u16::from_str(s).expect("Invalid port argument"));
+
+    let port = port_arg.expect("No port given, use --port or $FF_PORT");
+    MarionetteConnection::connect(port)
+        .expect("Unable to connect to firefox")
+}
+
+fn option_port<'a, 'b>() -> Arg<'a, 'b> {
+    Arg::with_name("PORT")
+        .takes_value(true)
+        .long("port")
+}
+
 fn main() {
     let matches = App::new("ff")
         .about("Firefox from your shell")
@@ -147,48 +167,61 @@ fn main() {
              .multiple(true)
              .long("verbose"))
         .subcommand(SubCommand::with_name("start")
+                    .arg(option_port())
                     .arg(Arg::with_name("no-fork")
                          .help("Run ff in the foreground")
                          .long("no-fork"))
                     .about("Start a new browser instance"))
         .subcommand(SubCommand::with_name("go")
+                    .arg(option_port())
                     .about("Navigate to URL")
                     .arg(Arg::with_name("URL")
                          .required(true)
                         ))
         .subcommand(SubCommand::with_name("back")
+                    .arg(option_port())
                     .about("Go back to the previous page in history"))
         .subcommand(SubCommand::with_name("forward")
+                    .arg(option_port())
                     .about("Go forward to the next page in history"))
         .subcommand(SubCommand::with_name("source")
+                    .arg(option_port())
                     .about("Print page source"))
         .subcommand(SubCommand::with_name("attr")
+                    .arg(option_port())
                     .arg(Arg::with_name("SELECTOR")
                          .required(true))
                     .arg(Arg::with_name("ATTRNAME")
                          .required(true))
                     .about("Print element attribute"))
         .subcommand(SubCommand::with_name("property")
+                    .arg(option_port())
                     .arg(Arg::with_name("SELECTOR")
                          .required(true))
                     .arg(Arg::with_name("NAME")
                          .required(true))
                     .about("Print element property"))
         .subcommand(SubCommand::with_name("text")
+                    .arg(option_port())
                     .arg(Arg::with_name("SELECTOR")
                          .required(true))
                     .about("Print element text"))
         .subcommand(SubCommand::with_name("instances")
                     .about("List running ff instances"))
         .subcommand(SubCommand::with_name("title")
+                    .arg(option_port())
                     .about("Print page title"))
         .subcommand(SubCommand::with_name("url")
+                    .arg(option_port())
                     .about("Print page url"))
         .subcommand(SubCommand::with_name("quit")
+                    .arg(option_port())
                     .about("Close the browser"))
         .subcommand(SubCommand::with_name("windows")
+                    .arg(option_port())
                     .about("List browser windows"))
         .subcommand(SubCommand::with_name("switch")
+                    .arg(option_port())
                     .arg(Arg::with_name("WINDOW")
                          .required(true))
                     .about("Switch browser window"))
@@ -200,52 +233,40 @@ fn main() {
             .init()
             .expect("Unable to initialize stderr output");
 
-    let port_arg = matches.value_of("PORT")
-        .map(|val| val.to_owned())
-        .or_else(|| env::var("FF_PORT").ok())
-        .map(|ref s| u16::from_str(s).expect("Invalid port argument"));
-
-    if let Some(ref args) = matches.subcommand_matches("start") {
-        cmd_start(port_arg, args).expect("Unable to start browser");
-        return;
-    }
-    if let Some(_) = matches.subcommand_matches("instances") {
-        cmd_instances().expect("Error listing ff instances");
-        return;
-    }
-
-    let port = port_arg.expect("No port given, use --port or $FF_PORT");
-
-    let mut conn = MarionetteConnection::connect(port)
-        .expect("Unable to connect to firefox");
 
     match matches.subcommand() {
-        ("go", Some(ref args)) => cmd_go(&mut conn, args).unwrap(),
-        ("back", Some(ref args)) => cmd_back(&mut conn, args).unwrap(),
-        ("forward", Some(ref args)) => cmd_forward(&mut conn, args).unwrap(),
-        ("source", _) => println!("{}", conn.get_page_source().unwrap()),
+        ("go", Some(ref args)) => cmd_go(args).unwrap(),
+        ("back", Some(ref args)) => connect_to_port(args).go_back().unwrap(),
+        ("forward", Some(ref args)) => connect_to_port(args).go_forward().unwrap(),
+        ("source", Some(ref args)) => println!("{}", connect_to_port(args).get_page_source().unwrap()),
         ("text", Some(ref args)) => {
+            let mut conn = connect_to_port(args);
             cmd_get_element_str_data(&mut conn, args, &|e| e.text()).unwrap();
             conn.switch_to_top_frame().unwrap();
         }
         ("attr", Some(ref args)) => {
+            let mut conn = connect_to_port(args);
             let attrname = args.value_of("ATTRNAME").unwrap();
             cmd_get_element_str_data(&mut conn, args, &|e| e.attr(attrname)).unwrap();
             conn.switch_to_top_frame().unwrap();
         }
         ("property", Some(ref args)) => {
+            let mut conn = connect_to_port(args);
             let propname = args.value_of("NAME").unwrap();
             cmd_get_element_json_data(&mut conn, args, &|e| e.property(propname)).unwrap();
             conn.switch_to_top_frame().unwrap();
         }
-        ("title", _) => println!("{}", conn.get_title().unwrap()),
-        ("url", _) => println!("{}", conn.get_url().unwrap()),
-        ("quit", _) => conn.quit().unwrap(),
+        ("title", Some(ref args)) => println!("{}", connect_to_port(args).get_title().unwrap()),
+        ("url", Some(ref args)) => println!("{}", connect_to_port(args).get_url().unwrap()),
+        ("quit", Some(ref args)) => connect_to_port(args).quit().unwrap(),
+        ("start", Some(ref args)) => cmd_start(args).expect("Unable to start browser"),
+        ("instances", _) => cmd_instances().expect("Unable to list ff instances"),
         ("switch", Some(ref args)) => {
+            let mut conn = connect_to_port(args);
             let handle = WindowHandle::from_str(args.value_of("WINDOW").unwrap());
             conn.switch_to_window(&handle).unwrap();
         }
-        ("windows", Some(ref args)) => cmd_windows(&mut conn, args).unwrap(),
+        ("windows", Some(ref args)) => cmd_windows(args).unwrap(),
         _ => panic!("Unsupported command"),
     }
 }
