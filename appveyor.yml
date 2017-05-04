@@ -38,3 +38,17 @@ artifacts:
 
 cache:
   - 'C:\Users\appveyor\.cargo'
+
+deploy:
+  provider: GitHub
+  auth_token:
+    secure: "5+q/dJRgmj33CNchCfhqjLrzjZyxDrYxmqT4bVf0klqzokPx3qbuSJKlEYjQ4MsE"
+  artifact: target/release/ff.exe
+  draft: false
+  prerelease: false
+  force_update: true
+  on:
+    branch: master                 # release from master branch only
+    appveyor_repo_tag: true        # deploy on tag push only
+    TARGET: i686-pc-windows-gnu
+    CHANNEL: stable
