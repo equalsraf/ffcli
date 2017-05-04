@@ -26,22 +26,12 @@ install:
 build: false
 
 test_script:
-  - cargo build --verbose --all
-  # firefox can only have one active connection/session
-  # disable threading in tests to avoid failures
-  - set RUST_TEST_THREADS=1
-  - set RUST_LOG=marionette=debug,ff=debug,manual=debug
-  - set RUST_BACKTRACE=1
-  # Some tests in the manual require a running instance
-  - set PATH=%PATH%;target\debug;
-  - ff -vvv start --port 7766
-  - set FF_PORT=7766
-  # We dont actually run the tests for the marionette crate, just for ff
-  - cargo test --manifest-path ff/Cargo.toml --verbose
+  # Run a script instead, appveyor blocks waiting background jobs
+  - call ci\appveyor_test.bat
 
 after_test:
   # create a release binary
-  - cargo build --manifest-path ff/Cargo.toml --release
+  - if "%CHANNEL%" == "stable" cargo build --manifest-path ff/Cargo.toml --release
 
 artifacts:
   - path: target/release/ff.exe
