@@ -66,6 +66,9 @@ impl FirefoxRunner {
             prefs.insert("startup.homepage_welcome_url", Pref::new("about:blank"));
             prefs.insert("startup.homepage_welcome_url.additional", Pref::new(""));
 
+            // Disable autoplay
+            prefs.insert("media.autoplay.enabled", Pref::new(false));
+
             prefs.insert_slice(&FIREFOX_PREFERENCES[..]);
             prefs.write()?;
         }
