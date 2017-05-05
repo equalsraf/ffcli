@@ -111,6 +111,7 @@ fn cmd_get_element_str_data<F>(conn: &mut MarionetteConnection, args: &ArgMatche
     for frameref in conn.find_elements(CssSelector, FRAME_SELECTOR, None)? {
         conn.switch_to_frame(&frameref)?;
         cmd_get_element_str_data(conn, args, f)?;
+        conn.switch_to_top_frame()?;
     }
     Ok(())
 }
@@ -130,6 +131,7 @@ fn cmd_get_element_json_data<F>(conn: &mut MarionetteConnection, args: &ArgMatch
     for frameref in conn.find_elements(CssSelector, FRAME_SELECTOR, None)? {
         conn.switch_to_frame(&frameref)?;
         cmd_get_element_json_data(conn, args, f)?;
+        conn.switch_to_top_frame()?;
     }
     Ok(())
 }
