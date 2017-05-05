@@ -68,6 +68,8 @@ impl FirefoxRunner {
 
             // Disable autoplay
             prefs.insert("media.autoplay.enabled", Pref::new(false));
+            // Enable private browsing
+            prefs.insert("browser.privatebrowsing.autostart", Pref::new(false));
 
             prefs.insert_slice(&FIREFOX_PREFERENCES[..]);
             prefs.write()?;
