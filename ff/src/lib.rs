@@ -13,6 +13,7 @@ extern crate mozprofile;
 extern crate log;
 extern crate mktemp;
 extern crate marionette;
+use marionette::Result;
 
 mod runner;
 use runner::FirefoxRunner;
@@ -90,7 +91,7 @@ pub fn instances() -> io::Result<Vec<String>> {
 }
 
 /// Test the marionette connection by attempting to connect multiple times
-pub fn check_connection(port: u16) -> io::Result<()> {
+pub fn check_connection(port: u16) -> Result<()> {
     let mut retry = 1;
     loop {
         thread::sleep(Duration::new(retry*2, 0));

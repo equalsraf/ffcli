@@ -1,11 +1,10 @@
 use std::str::FromStr;
-use std::io::Result;
 use std::env;
 use std::process::{Command, Stdio};
 
 extern crate ff;
 extern crate marionette;
-use marionette::{MarionetteConnection, Element, JsonValue, WindowHandle};
+use marionette::{MarionetteConnection, Element, JsonValue, WindowHandle, Result};
 use marionette::QueryMethod::CssSelector;
 extern crate clap;
 use clap::{App, Arg, ArgMatches, SubCommand, AppSettings};

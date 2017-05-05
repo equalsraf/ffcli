@@ -8,6 +8,7 @@ use std::net::TcpStream;
 use std::str;
 use std::convert::From;
 use std::str::FromStr;
+use std::fmt;
 
 #[macro_use]
 extern crate log;
@@ -23,39 +24,55 @@ use serde::de::DeserializeOwned;
 pub use serde_json::Value as JsonValue;
 
 #[derive(Debug)]
-enum CallError {
+pub enum MarionetteError {
     Io(io::Error),
     JSON(JsonError),
     Call(ErrorObject),
     UnexpectedType,
     InvalidMsgId,
     InvalidResponseArray,
-    InvalidErrorObject,
+    UnsupportedProtocolVersion,
+    UnsupportedContext(String),
 }
 
-impl CallError {
-    /// Convert a CallError into an std::io::Error
-    fn into_err(self) -> Error {
-        match self {
-            CallError::Io(err) => err,
-            CallError::JSON(err) => Error::new(ErrorKind::InvalidData, err),
-            CallError::Call(err) =>
-                Error::new(ErrorKind::Other, format!("{}: {}", err.error, err.message)),
-            _ => Error::new(ErrorKind::InvalidData, "Invalid response message"),
+impl MarionetteError {
+    pub fn is_fatal(&self) -> bool {
+        match *self {
+            MarionetteError::Call(_) => false,
+            MarionetteError::UnsupportedContext(_) => false,
+            // Other errors are either Io errors or messages that do not follow the
+            // protocol
+            _ => true,
         }
     }
 }
 
-impl From<Error> for CallError {
+impl From<Error> for MarionetteError {
     fn from(err: Error) -> Self {
-        CallError::Io(err)
+        MarionetteError::Io(err)
     }
 }
-impl From<JsonError> for CallError {
+impl From<JsonError> for MarionetteError {
     fn from(err: JsonError) -> Self {
-        CallError::JSON(err)
+        MarionetteError::JSON(err)
     }
 }
+impl fmt::Display for MarionetteError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            MarionetteError::Io(ref err) => err.fmt(f),
+            MarionetteError::JSON(ref err) => err.fmt(f),
+            MarionetteError::Call(ref err) => write!(f, "{}", err.message),
+            MarionetteError::UnexpectedType => write!(f, "Found unexpected type in marionette message"),
+            MarionetteError::InvalidMsgId => write!(f, "Invalid msg id in marionette message"),
+            MarionetteError::InvalidResponseArray => write!(f, "Invalid response array in marionette message"),
+            MarionetteError::UnsupportedProtocolVersion => write!(f, "Browser uses unsupported protocol version"),
+            MarionetteError::UnsupportedContext(ref c) => write!(f, "Unsupported context: {}", c),
+        }
+    }
+}
+
+pub type Result<T> = std::result::Result<T, MarionetteError>;
 
 pub mod messages;
 use messages::*;
@@ -68,13 +85,12 @@ pub struct MarionetteConnection {
 }
 
 impl MarionetteConnection {
-    pub fn connect(port: u16) -> io::Result<Self> {
+    pub fn connect(port: u16) -> Result<Self> {
         let stream = TcpStream::connect(("127.0.0.1", port))?;
         let mut reader = BufReader::new(stream.try_clone()?);
         let frame = readframe(&mut reader)?;
         debug!("ServerInfo frame: {}", frame);
-        let info: ServerInfo = from_str(&frame)
-            .map_err(|_| Error::new(ErrorKind::InvalidData, "Invalid JSON in server info"))?;
+        let info: ServerInfo = from_str(&frame)?;
         if info.marionetteProtocol == 3 {
             let mut conn = MarionetteConnection {
                 reader: reader,
@@ -85,7 +101,7 @@ impl MarionetteConnection {
 
             Ok(conn)
         } else {
-            Err(Error::new(ErrorKind::InvalidData, "Unsupported marionette protocol version"))
+            Err(MarionetteError::UnsupportedProtocolVersion)
         }
     }
 
@@ -95,7 +111,7 @@ impl MarionetteConnection {
         next
     }
 
-    fn call<D, S>(&mut self, name: &str, args: S) -> Result<D, CallError> 
+    fn call<D, S>(&mut self, name: &str, args: S) -> Result<D> 
             where D: DeserializeOwned, S: Serialize {
         let mut cmdarr = Vec::new();
         let msgid = self.next_msgid();
@@ -117,12 +133,12 @@ impl MarionetteConnection {
                 match drain.next().and_then(|v| Value::as_u64(&v)) {
                     // Only command responses(1) are valid
                     Some(1) => (),
-                    _ => return Err(CallError::UnexpectedType),
+                    _ => return Err(MarionetteError::UnexpectedType),
                 }
 
                 let resp_msgid = match drain.next().and_then(|v| Value::as_u64(&v)) {
                     Some(val) => val,
-                    _ => return Err(CallError::InvalidMsgId),
+                    _ => return Err(MarionetteError::InvalidMsgId),
                 };
 
                 if resp_msgid != msgid {
@@ -135,176 +151,169 @@ impl MarionetteConnection {
                 match drain.next() {
                     Some(Value::Null) => (),
                     Some(err) => {
-                        let err = from_value(err)
-                            .map_err(|_| CallError::InvalidErrorObject)?;
-                        return Err(CallError::Call(err));
+                        let err = from_value(err)?;
+                        return Err(MarionetteError::Call(err));
                     }
-                    None => return Err(CallError::InvalidResponseArray),
+                    None => return Err(MarionetteError::InvalidResponseArray),
                 }
 
                 match drain.next() {
-                    None => return Err(CallError::InvalidResponseArray),
+                    None => return Err(MarionetteError::InvalidResponseArray),
                     Some(val) => return Ok(from_value(val)?),
                 }
             } else {
-               return Err(CallError::UnexpectedType)
+               return Err(MarionetteError::UnexpectedType)
             }
         }
     }
 
     // AFAIK the semantics for newSession is that it should be called for each connection
-    fn new_session(&mut self) -> io::Result<NewSessionResponse> {
-        let resp = self.call("newSession", Empty {}).map_err(CallError::into_err)?;
-        Ok(resp)
+    fn new_session(&mut self) -> Result<NewSessionResponse> {
+        self.call("newSession", Empty {})
     }
 
     /// Refresh the current page
-    pub fn refresh(&mut self) -> io::Result<()> {
-        let _: Empty = self.call("refresh", Empty {}).map_err(CallError::into_err)?;
+    pub fn refresh(&mut self) -> Result<()> {
+        let _: Empty = self.call("refresh", Empty {})?;
         Ok(())
     }
 
     /// Go back to the previous page
-    pub fn go_back(&mut self) -> io::Result<()> {
-        let _: Empty = self.call("goBack", Empty {}).map_err(CallError::into_err)?;
+    pub fn go_back(&mut self) -> Result<()> {
+        let _: Empty = self.call("goBack", Empty {})?;
         Ok(())
     }
 
     /// Go forward to the next page in history
-    pub fn go_forward(&mut self) -> io::Result<()> {
-        let _: Empty = self.call("goForward", Empty {}).map_err(CallError::into_err)?;
+    pub fn go_forward(&mut self) -> Result<()> {
+        let _: Empty = self.call("goForward", Empty {})?;
         Ok(())
     }
 
     /// Get the window title
-    pub fn get_title(&mut self) -> io::Result<String> {
-        let resp: ResponseValue<_> = self.call("getTitle", Empty {}).map_err(CallError::into_err)?;
+    pub fn get_title(&mut self) -> Result<String> {
+        let resp: ResponseValue<_> = self.call("getTitle", Empty {})?;
         Ok(resp.value)
     }
 
     /// Navigate to an URL
-    pub fn get(&mut self, url: &str) -> io::Result<()> {
-        let url_arg = to_value(GetCommand::from(url))
-            .map_err(|err| Error::new(ErrorKind::Other, err))?;
-        let _: Empty = self.call("get", url_arg)
-            .map_err(CallError::into_err)?;
+    pub fn get(&mut self, url: &str) -> Result<()> {
+        let url_arg = to_value(GetCommand::from(url))?;
+        let _: Empty = self.call("get", url_arg)?;
         Ok(())
     }
 
     /// Get the page url
-    pub fn get_url(&mut self) -> io::Result<String> {
-        let resp: ResponseValue<_> = self.call("getCurrentUrl", Empty {}).map_err(CallError::into_err)?;
+    pub fn get_url(&mut self) -> Result<String> {
+        let resp: ResponseValue<_> = self.call("getCurrentUrl", Empty {})?;
         Ok(resp.value)
     }
 
     /// Store a log in the marionette server
-    pub fn log(&mut self, msg: LogMsg) -> io::Result<()> {
-        let _: Empty = self.call("log", msg).map_err(CallError::into_err)?;
+    pub fn log(&mut self, msg: LogMsg) -> Result<()> {
+        let _: Empty = self.call("log", msg)?;
         Ok(())
     }
 
     /// Get all log entries from the server
-    pub fn get_logs(&mut self) -> io::Result<Vec<LogEntry>> {
-        let resp = self.call("getLogs", Empty {}).map_err(CallError::into_err)?;
-        Ok(resp)
+    pub fn get_logs(&mut self) -> Result<Vec<LogEntry>> {
+        self.call("getLogs", Empty {})
     }
 
     /// Returns the handle for the current window
-    pub fn get_window_handle(&mut self) -> io::Result<WindowHandle> {
-        let resp: ResponseValue<_> = self.call("getWindowHandle", Empty {}).map_err(CallError::into_err)?;
+    pub fn get_window_handle(&mut self) -> Result<WindowHandle> {
+        let resp: ResponseValue<_> = self.call("getWindowHandle", Empty {})?;
         Ok(resp.value)
     }
 
     /// Returns a list of windows in the current context
-    pub fn get_window_handles(&mut self) -> io::Result<Vec<WindowHandle>> {
-        let resp: _ = self.call("getWindowHandles", Empty {}).map_err(CallError::into_err)?;
-        Ok(resp)
+    pub fn get_window_handles(&mut self) -> Result<Vec<WindowHandle>> {
+        self.call("getWindowHandles", Empty {})
     }
 
     /// Switch to the specified window
-    pub fn switch_to_window(&mut self, win: &WindowHandle) -> io::Result<()> {
-        let _: Empty = self.call("switchToWindow", win).map_err(CallError::into_err)?;
+    pub fn switch_to_window(&mut self, win: &WindowHandle) -> Result<()> {
+        let _: Empty = self.call("switchToWindow", win)?;
         Ok(())
     }
 
-    pub fn get_context(&mut self) -> io::Result<Context> {
-        let resp = self.call("getContext", Empty {}).map_err(CallError::into_err)?;
+    pub fn get_context(&mut self) -> Result<Context> {
+        let resp = self.call("getContext", Empty {})?;
         Context::from_value(resp)
     }
 
-    pub fn set_context(&mut self, ctx: Context) -> io::Result<()> {
+    pub fn set_context(&mut self, ctx: Context) -> Result<()> {
         let arg: ContextValue = ctx.into();
-        let _: Empty = self.call("setContext", arg).map_err(CallError::into_err)?;
+        let _: Empty = self.call("setContext", arg)?;
         Ok(())
     }
 
     /// Execute the given script
     ///
     /// The return value is any JSON type returned by the script
-    pub fn execute_script(&mut self, script: &Script) -> io::Result<JsonValue> {
-        let resp: ResponseValue<_> = self.call("executeScript", script).map_err(CallError::into_err)?;
+    pub fn execute_script(&mut self, script: &Script) -> Result<JsonValue> {
+        let resp: ResponseValue<_> = self.call("executeScript", script)?;
         Ok(resp.value)
     }
 
     /// Returns the page source
-    pub fn get_page_source(&mut self) -> io::Result<String> {
-        let resp: ResponseValue<_> = self.call("getPageSource", Empty {}).map_err(CallError::into_err)?;
+    pub fn get_page_source(&mut self) -> Result<String> {
+        let resp: ResponseValue<_> = self.call("getPageSource", Empty {})?;
         Ok(resp.value)
     }
 
     /// Returns a list of HTML elements that match the given target
-    pub fn find_elements(&mut self, method: QueryMethod, target: &str, inside: Option<&ElementRef>) -> io::Result<Vec<ElementRef>> {
+    pub fn find_elements(&mut self, method: QueryMethod, target: &str, inside: Option<&ElementRef>) -> Result<Vec<ElementRef>> {
         let query = FindElementQuery {
             value: target.to_owned(),
             using: method,
             element: inside.map(|elem| elem.reference.to_owned()),
         };
-        let resp = self.call("findElements", query).map_err(CallError::into_err)?;
-        Ok(resp)
+        self.call("findElements", query)
     }
 
-    pub fn get_element_attribute(&mut self, elem: &ElementRef, attrname: &str) -> io::Result<String> {
+    pub fn get_element_attribute(&mut self, elem: &ElementRef, attrname: &str) -> Result<String> {
         let arg = ElementOp {
             id: elem.reference.to_owned(),
             name: Some(attrname.to_owned()),
         };
-        let resp: ResponseValue<_> = self.call("getElementAttribute", arg).map_err(CallError::into_err)?;
+        let resp: ResponseValue<_> = self.call("getElementAttribute", arg)?;
         Ok(resp.value)
     }
 
-    pub fn get_element_property(&mut self, elem: &ElementRef, propname: &str) -> io::Result<JsonValue> {
+    pub fn get_element_property(&mut self, elem: &ElementRef, propname: &str) -> Result<JsonValue> {
         let arg = ElementOp {
             id: elem.reference.to_owned(),
             name: Some(propname.to_owned()),
         };
-        let resp: ResponseValue<_> = self.call("getElementProperty", arg).map_err(CallError::into_err)?;
+        let resp: ResponseValue<_> = self.call("getElementProperty", arg)?;
         Ok(resp.value)
     }
 
-    pub fn get_element_text(&mut self, elem: &ElementRef) -> io::Result<String> {
+    pub fn get_element_text(&mut self, elem: &ElementRef) -> Result<String> {
         let arg = ElementOp {
             id: elem.reference.to_owned(),
             name: None,
         };
-        let resp: ResponseValue<_> = self.call("getElementText", arg).map_err(CallError::into_err)?;
+        let resp: ResponseValue<_> = self.call("getElementText", arg)?;
         Ok(resp.value)
     }
 
-    pub fn switch_to_frame(&mut self, elem: &ElementRef) -> io::Result<()> {
+    pub fn switch_to_frame(&mut self, elem: &ElementRef) -> Result<()> {
         let arg = FrameSwitch::from_element(false, elem);
-        let _: Empty = self.call("switchToFrame", arg).map_err(CallError::into_err)?;
+        let _: Empty = self.call("switchToFrame", arg)?;
         Ok(())
     }
 
-    pub fn switch_to_top_frame(&mut self) -> io::Result<()> {
+    pub fn switch_to_top_frame(&mut self) -> Result<()> {
         let arg = FrameSwitch::top(false);
-        let _: Empty = self.call("switchToFrame", arg).map_err(CallError::into_err)?;
+        let _: Empty = self.call("switchToFrame", arg)?;
         Ok(())
     }
 
     /// Close the application
-    pub fn quit(mut self) -> io::Result<()> {
-        let _: Empty = self.call("quitApplication", Empty {}).map_err(CallError::into_err)?;
+    pub fn quit(mut self) -> Result<()> {
+        let _: Empty = self.call("quitApplication", Empty {})?;
         Ok(())
     }
 }
@@ -324,22 +333,22 @@ impl<'a> Element<'a> {
     }
 
     /// Get element attribute
-    pub fn attr(&mut self, name: &str) -> io::Result<String> {
+    pub fn attr(&mut self, name: &str) -> Result<String> {
         self.connection.get_element_attribute(&self.id, name)
     }
 
     /// Get element property
-    pub fn property(&mut self, name: &str) -> io::Result<JsonValue> {
+    pub fn property(&mut self, name: &str) -> Result<JsonValue> {
         self.connection.get_element_property(&self.id, name)
     }
 
     /// Get visible text for this element
-    pub fn text(&mut self) -> io::Result<String> {
+    pub fn text(&mut self) -> Result<String> {
         self.connection.get_element_text(&self.id)
     }
 
     /// Find elements inside this element
-    pub fn find_elements(&mut self, method: QueryMethod, target: &str) -> io::Result<Vec<ElementRef>> {
+    pub fn find_elements(&mut self, method: QueryMethod, target: &str) -> Result<Vec<ElementRef>> {
         self.connection.find_elements(method, target, Some(&self.id))
     }
 }
@@ -354,11 +363,11 @@ pub enum Context {
 }
 
 impl Context {
-    fn from_value(val: ContextValue) -> io::Result<Self> {
+    fn from_value(val: ContextValue) -> Result<Self> {
         match val.value.as_ref() {
             "chrome" => Ok(Context::Chrome),
             "content" => Ok(Context::Content),
-            other => Err(Error::new(ErrorKind::InvalidData, format!("Unsupported context {}", other))),
+            other => Err(MarionetteError::UnsupportedContext(other.to_owned())),
         }
     }
 }
@@ -373,7 +382,7 @@ impl Into<ContextValue> for Context {
 }
 
 /// Read data in the format `length:data`. The entire frame must be valid UTF8.
-fn readframe<R: BufRead>(r: &mut R) -> Result<String, io::Error> {
+fn readframe<R: BufRead>(r: &mut R) -> io::Result<String> {
     let mut lenbuf = Vec::new();
     // Read length prefix
     let bytes = r.read_until(b':', &mut lenbuf)?;
@@ -394,7 +403,7 @@ fn readframe<R: BufRead>(r: &mut R) -> Result<String, io::Error> {
 }
 
 /// Prepend string with length: and push it down the wire
-fn sendframe<W: Write>(w: &mut W, data: &str) -> Result<(), io::Error> {
+fn sendframe<W: Write>(w: &mut W, data: &str) -> io::Result<()> {
     debug!("-> {}", data);
     w.write_all(format!("{}:", data.len()).as_bytes())?;
     w.write_all(data.as_bytes())?;
