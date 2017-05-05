@@ -6,9 +6,10 @@
 use std::fmt;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use serde::ser::SerializeStruct;
-use serde_json::Value;
+use serde_json::{Value, to_value};
 use serde::de::{Visitor, MapAccess};
 use serde::de::Error as DeError;
+use super::MarionetteError;
 
 #[derive(Deserialize, Debug)]
 pub struct ServerInfo {
@@ -120,8 +121,9 @@ impl Script {
 
     /// Set arguments for this script. This is usually an array that
     /// is used as the `arguments` variable.
-    pub fn arguments<V: Into<Value>>(&mut self, args: V) {
-        self.args = args.into();
+    pub fn arguments<S: Serialize>(&mut self, args: S) -> Result<(), MarionetteError>{
+        self.args = to_value(args)?;
+        Ok(())
     }
 }
 
@@ -169,6 +171,16 @@ pub struct ElementRef {
 impl ElementRef {
     pub fn from_str(handle: &str) -> ElementRef {
         ElementRef { reference: handle.to_string() }
+    }
+
+}
+
+impl Serialize for ElementRef {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        let mut ss = s.serialize_struct("ElementRef", 2)?;
+        ss.serialize_field("ELEMENT", &self.reference)?;
+        ss.serialize_field("element-6066-11e4-a52e-4f735466cecf", &self.reference)?;
+        ss.end()
     }
 }
 
