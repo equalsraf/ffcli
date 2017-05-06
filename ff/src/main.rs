@@ -162,8 +162,11 @@ fn cmd_exec(conn: &mut MarionetteConnection, args: &ArgMatches) -> Result<()> {
         script.arguments(script_args)?;
     }
 
-    let val = conn.execute_script(&script)?;
-    print_json_value(&val, args);
+    match conn.execute_script(&script) {
+        Ok(val) => print_json_value(&val, args),
+        Err(ref err) if !err.is_fatal() => error!("Error executing script: {}", err),
+        Err(err) => return Err(err),
+    }
 
     for frameref in conn.find_elements(CssSelector, FRAME_SELECTOR, None)? {
         conn.switch_to_frame(&frameref)?;
