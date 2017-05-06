@@ -1,10 +1,11 @@
 use std::str::FromStr;
 use std::env;
 use std::process::{Command, Stdio};
+use std::io::{self, Read};
 
 extern crate ff;
 extern crate marionette;
-use marionette::{MarionetteConnection, Element, JsonValue, WindowHandle, Result};
+use marionette::{MarionetteConnection, Element, JsonValue, WindowHandle, Result, Script};
 use marionette::QueryMethod::CssSelector;
 extern crate clap;
 use clap::{App, Arg, ArgMatches, SubCommand, AppSettings};
@@ -136,6 +137,36 @@ fn cmd_get_element_json_data<F>(conn: &mut MarionetteConnection, args: &ArgMatch
     Ok(())
 }
 
+fn cmd_exec(conn: &mut MarionetteConnection, args: &ArgMatches) -> Result<()> {
+    let mut js = args.value_of("SCRIPT").unwrap().to_owned();
+    if js == "-" {
+        js.clear();
+        io::stdin().read_to_string(&mut js)?;
+    }
+
+    let mut script = Script::new(&js);
+    if let Some(iter) = args.values_of("ARG") {
+        let mut script_args: Vec<JsonValue> = Vec::new();
+        for arg in iter {
+            let val = JsonValue::from_str(arg).expect("Script argument is invalid JSON");
+            script_args.push(val);
+        }
+        script.arguments(script_args)?;
+    }
+
+    let val = conn.execute_script(&script)?;
+    if val != JsonValue::Null {
+        println!("{}", val);
+    }
+
+    for frameref in conn.find_elements(CssSelector, FRAME_SELECTOR, None)? {
+        conn.switch_to_frame(&frameref)?;
+        cmd_exec(conn, args)?;
+        conn.switch_to_top_frame()?;
+    }
+    Ok(())
+}
+
 /// Panics unless --port of $FF_PORT is a valid port number
 fn connect_to_port(args: &ArgMatches) -> MarionetteConnection {
     let port_arg = args.value_of("PORT")
@@ -195,6 +226,16 @@ fn main() {
                     .arg(Arg::with_name("ATTRNAME")
                          .required(true))
                     .about("Print element attribute"))
+        .subcommand(SubCommand::with_name("exec")
+                    .arg(option_port())
+                    .arg(Arg::with_name("SCRIPT")
+                         .required(true)
+                         .help("Javascript code"))
+                    .arg(Arg::with_name("ARG")
+                         .multiple(true)
+                         .required(false)
+                         .help("Script arguments[]"))
+                    .about("Executes script in all frames, print its return value"))
         .subcommand(SubCommand::with_name("property")
                     .arg(option_port())
                     .arg(Arg::with_name("SELECTOR")
@@ -250,6 +291,10 @@ fn main() {
             let attrname = args.value_of("ATTRNAME").unwrap();
             cmd_get_element_str_data(&mut conn, args, &|e| e.attr(attrname)).unwrap();
             conn.switch_to_top_frame().unwrap();
+        }
+        ("exec", Some(ref args)) => {
+            let mut conn = connect_to_port(args);
+            cmd_exec(&mut conn, &args).unwrap();
         }
         ("property", Some(ref args)) => {
             let mut conn = connect_to_port(args);

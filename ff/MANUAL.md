@@ -62,6 +62,25 @@ The __property__ command is similar to attr, however properties are JSON values.
 	$ ff property html scrollWidth
 	1907
 
+## Executing Javascript
+
+The __exec__ command is used run javascript code. The script will be executed in each frame, here is an example to list all frames in a page. null values are ignored.
+
+	$ ff exec "return document.location.href;"
+
+Arguments can be passed to the script, as additional positional arguments.
+
+	$ ff exec "return arguments[0] + arguments[1];" 42 1
+	43
+
+Arguments are treated as JSON, passing a string may require double quoting the argument
+according to your shell.
+
+Scripts can also be passed from stdin
+
+	$ echo "return 42;" | ff exec -
+	42
+
 ## Windows/tabs
 
 You can list the browser windows using the windows command, each line includes an id
