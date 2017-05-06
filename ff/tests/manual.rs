@@ -69,7 +69,7 @@ fn manual() {
     }
 
     let mut data = String::new();
-    let mut f = File::open("MANUAL.txt").unwrap();
+    let mut f = File::open("MANUAL.md").unwrap();
     f.read_to_string(&mut data).unwrap();
 
     let parser = Parser::new(&data);
