@@ -117,6 +117,16 @@ fn cmd_get_element_str_data<F>(conn: &mut MarionetteConnection, args: &ArgMatche
     Ok(())
 }
 
+fn print_json_value(val: &JsonValue, args: &ArgMatches) {
+    if args.is_present("FILTER-STR") {
+        if let JsonValue::String(ref val) = *val {
+            println!("{}", val);
+        }
+    } else if JsonValue::Null != *val {
+        println!("{}", val);
+    }
+}
+
 /// Filter elements based on a selector, then map them to a json value
 fn cmd_get_element_json_data<F>(conn: &mut MarionetteConnection, args: &ArgMatches, f: &F) -> Result<()> 
         where F: Fn(&mut Element) -> Result<JsonValue> {
@@ -124,9 +134,7 @@ fn cmd_get_element_json_data<F>(conn: &mut MarionetteConnection, args: &ArgMatch
     for elemref in conn.find_elements(CssSelector, args.value_of("SELECTOR").unwrap(), None)? {
         let mut elem = Element::new(conn, &elemref);
         let val = f(&mut elem)?;
-        if val != JsonValue::Null {
-            println!("{}", val);
-        }
+        print_json_value(&val, args);
     }
 
     for frameref in conn.find_elements(CssSelector, FRAME_SELECTOR, None)? {
@@ -155,9 +163,7 @@ fn cmd_exec(conn: &mut MarionetteConnection, args: &ArgMatches) -> Result<()> {
     }
 
     let val = conn.execute_script(&script)?;
-    if val != JsonValue::Null {
-        println!("{}", val);
-    }
+    print_json_value(&val, args);
 
     for frameref in conn.find_elements(CssSelector, FRAME_SELECTOR, None)? {
         conn.switch_to_frame(&frameref)?;
@@ -183,6 +189,16 @@ fn option_port<'a, 'b>() -> Arg<'a, 'b> {
     Arg::with_name("PORT")
         .takes_value(true)
         .long("port")
+}
+
+/// Common options for handling JSON data, see `print_json_value()`
+fn option_json_filters<'a, 'b>() -> [Arg<'a, 'b>; 1] {
+    [
+        Arg::with_name("FILTER-STR")
+            .long("filter-str")
+            .short("S")
+            .help("Print string values, ignore other types"),
+    ]
 }
 
 fn main() {
@@ -235,6 +251,7 @@ fn main() {
                          .multiple(true)
                          .required(false)
                          .help("Script arguments[]"))
+                    .args(&option_json_filters())
                     .about("Executes script in all frames, print its return value"))
         .subcommand(SubCommand::with_name("property")
                     .arg(option_port())
@@ -242,6 +259,7 @@ fn main() {
                          .required(true))
                     .arg(Arg::with_name("NAME")
                          .required(true))
+                    .args(&option_json_filters())
                     .about("Print element property"))
         .subcommand(SubCommand::with_name("text")
                     .arg(option_port())

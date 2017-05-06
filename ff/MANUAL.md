@@ -57,10 +57,14 @@ The __attr__ command gets the value in a named html attribute, for example to ge
 
 	$ ff attr a href
 
-The __property__ command is similar to attr, however properties are JSON values. Strings are quoted, and null values are ignored.
+The __property__ command is similar to attr, however properties are JSON values. Strings are quoted, and null values are not printed.
 
 	$ ff property html scrollWidth
 	1907
+
+But the output can be filtered for type, e.g. to print only string properties without quotes
+
+	$ ff property -S a href
 
 ## Executing Javascript
 
