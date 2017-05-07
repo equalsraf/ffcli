@@ -57,7 +57,7 @@ fn cmd_start(args: &ArgMatches) -> Result<()> {
             .spawn()?;
 
         ff::check_connection(portnum)?;
-        println!("FF_PORT={}", portnum);
+        println!("{}", portnum);
     }
 
     Ok(())
