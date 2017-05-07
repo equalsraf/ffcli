@@ -17,6 +17,14 @@ You can specify a specific port with the __port__ option
 
 	$ ff start --port 2929
 
+By default ff creates temporary profiles. If you want a persistent profile, provide
+a path where the profile is to be saved
+
+	$ ff start --profile test-profile
+
+Note that firefox will refuse to run two instances for the same profile,
+see see http://kb.mozillazine.org/Profile_in_use for more details.
+
 To list available browsers managed by ff, use the __instances__ command. The
 first part of the output is its listening port.
 

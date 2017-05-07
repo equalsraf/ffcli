@@ -24,8 +24,11 @@ pub struct Browser {
 }
 
 impl Browser {
-    pub fn start(port: u16) -> io::Result<Self> {
-        let runner = FirefoxRunner::new(port)?;
+    pub fn start<P: AsRef<Path>>(port: u16, profile_path: Option<P>) -> io::Result<Self> {
+        let runner = match profile_path {
+            None => FirefoxRunner::tmp(port)?,
+            Some(path) => FirefoxRunner::from_path(path, port)?,
+        };
         let session_file = create_instance_file(None, port)?;
         Ok(Browser {
             runner: runner,
@@ -99,7 +102,7 @@ pub fn check_connection(port: u16) -> Result<()> {
             Ok(_) => break,
             Err(err) => {
                 debug!("#{} Failed to connect to firefox({}): {}", retry, port, err);
-                if 5 <= retry {
+                if 4 <= retry {
                     return Err(err)?;
                 }
             }

@@ -36,7 +36,7 @@ fn cmd_start(args: &ArgMatches) -> Result<()> {
     if args.is_present("no-fork") {
         setup_signals();
 
-        let mut browser = ff::Browser::start(portnum)?;
+        let mut browser = ff::Browser::start(portnum, args.value_of("PROFILE"))?;
         debug!("New ff session {}", browser.session_file().to_string_lossy());
 
         let status = browser.runner.process.wait()?;
@@ -219,6 +219,11 @@ fn main() {
                     .arg(Arg::with_name("no-fork")
                          .help("Run ff in the foreground")
                          .long("no-fork"))
+                    .arg(Arg::with_name("PROFILE")
+                         .takes_value(true)
+                         .help("Profile path")
+                         .long("profile")
+                         .short("P"))
                     .about("Start a new browser instance"))
         .subcommand(SubCommand::with_name("go")
                     .arg(option_port())

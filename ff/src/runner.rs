@@ -5,6 +5,7 @@ use std::io::Result as IoResult;
 use std::path::{PathBuf, Path};
 use std::process;
 use std::process::{Command, Stdio, Child};
+use std::fs;
 
 extern crate marionette;
 use mktemp::Temp;
@@ -40,14 +41,14 @@ pub struct FirefoxRunner {
     pub process: process::Child,
     pub profile: Profile,
     port: u16,
-    profile_tmpdir: Temp,
+    profile_tmpdir: Option<Temp>,
     drop_browser: bool,
 }
 
 impl FirefoxRunner {
-    /// Run a new browser instance, listenint on the given port.
-    /// If the port is None, a random port is used.
-    pub fn new(port: u16) -> IoResult<FirefoxRunner> {
+    /// Run a new browser instance, listening on the given port.
+    /// Creates a temporary profile for this instance.
+    pub fn tmp(port: u16) -> IoResult<FirefoxRunner> {
         let profile_tmpdir = Temp::new_dir()?;
         let mut profile = Profile::new(Some(profile_tmpdir.as_ref()))?;
 
@@ -84,7 +85,36 @@ impl FirefoxRunner {
             process: child,
             profile: profile,
             port: port,
-            profile_tmpdir: profile_tmpdir,
+            profile_tmpdir: Some(profile_tmpdir),
+            drop_browser: true,
+        })
+    }
+
+    /// Starts a new firefox instance using the profile at the given path, if the
+    /// path does not exist it is created.
+    pub fn from_path<P: AsRef<Path>>(profile_path: P, port: u16) -> IoResult<FirefoxRunner> {
+        fs::create_dir_all(&profile_path)?;
+
+        let mut profile = Profile::new(Some(profile_path.as_ref()))?;
+
+        {
+            let mut prefs = profile.user_prefs()
+                .map_err(|err| IoError::new(ErrorKind::Other, format!("{}", err)))?;
+            prefs.insert("marionette.port", Pref::new(port as i64));
+            prefs.insert("marionette.defaultPrefs.port", Pref::new(port as i64));
+            prefs.write()?;
+        }
+
+        let bin = firefox_default_path().unwrap_or(PathBuf::from("firefox"));
+        let child = spawn_firefox(&bin, &profile.path)?;
+
+        info!("Started firefox on port {}", port);
+
+        Ok(FirefoxRunner {
+            process: child,
+            profile: profile,
+            port: port,
+            profile_tmpdir: None,
             drop_browser: true,
         })
     }
