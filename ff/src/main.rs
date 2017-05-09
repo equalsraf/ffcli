@@ -96,23 +96,24 @@ fn cmd_windows(args: &ArgMatches) -> Result<()> {
 
 const FRAME_SELECTOR: &'static str = "iframe, frame";
 
-/// Filter elements based on a selector, then map them to a string
-fn cmd_get_element_str_data<F>(conn: &mut MarionetteConnection, args: &ArgMatches, f: &F) -> Result<()>
-        where F: Fn(&mut Element) -> Result<String> {
+/// Iterate over all frames under the current frame
+fn foreach_frame<F>(conn: &mut MarionetteConnection, args: &ArgMatches, f: &F) -> Result<()>
+        where F: Fn(&mut MarionetteConnection, &ArgMatches) -> Result<()> {
+    f(conn, args)?;
+    for frameref in conn.find_elements(CssSelector, FRAME_SELECTOR, None)? {
+        conn.switch_to_frame(Some(frameref))?;
+        foreach_frame(conn, args, f)?;
+        conn.switch_to_parent_frame()?;
+    }
+    Ok(())
+}
 
+/// Iterate over elements based on argument "SELECTOR"
+fn foreach_element<F, T>(conn: &mut MarionetteConnection, args: &ArgMatches, f: &F) -> Result<()>
+        where F: Fn(&mut Element) -> Result<T> {
     let selector =  args.value_of("SELECTOR").unwrap();
     for elemref in conn.find_elements(CssSelector, selector, None)? {
-        let mut elem = Element::new(conn, &elemref);
-        let text = f(&mut elem)?;
-        if !text.is_empty() {
-            println!("{}", text);
-        }
-    }
-
-    for frameref in conn.find_elements(CssSelector, FRAME_SELECTOR, None)? {
-        conn.switch_to_frame(&frameref)?;
-        cmd_get_element_str_data(conn, args, f)?;
-        conn.switch_to_top_frame()?;
+        f(&mut Element::new(conn, &elemref))?;
     }
     Ok(())
 }
@@ -125,55 +126,6 @@ fn print_json_value(val: &JsonValue, args: &ArgMatches) {
     } else if JsonValue::Null != *val {
         println!("{}", val);
     }
-}
-
-/// Filter elements based on a selector, then map them to a json value
-fn cmd_get_element_json_data<F>(conn: &mut MarionetteConnection, args: &ArgMatches, f: &F) -> Result<()> 
-        where F: Fn(&mut Element) -> Result<JsonValue> {
-
-    for elemref in conn.find_elements(CssSelector, args.value_of("SELECTOR").unwrap(), None)? {
-        let mut elem = Element::new(conn, &elemref);
-        let val = f(&mut elem)?;
-        print_json_value(&val, args);
-    }
-
-    for frameref in conn.find_elements(CssSelector, FRAME_SELECTOR, None)? {
-        conn.switch_to_frame(&frameref)?;
-        cmd_get_element_json_data(conn, args, f)?;
-        conn.switch_to_top_frame()?;
-    }
-    Ok(())
-}
-
-fn cmd_exec(conn: &mut MarionetteConnection, args: &ArgMatches) -> Result<()> {
-    let mut js = args.value_of("SCRIPT").unwrap().to_owned();
-    if js == "-" {
-        js.clear();
-        io::stdin().read_to_string(&mut js)?;
-    }
-
-    let mut script = Script::new(&js);
-    if let Some(iter) = args.values_of("ARG") {
-        let mut script_args: Vec<JsonValue> = Vec::new();
-        for arg in iter {
-            let val = JsonValue::from_str(arg).expect("Script argument is invalid JSON");
-            script_args.push(val);
-        }
-        script.arguments(script_args)?;
-    }
-
-    match conn.execute_script(&script) {
-        Ok(val) => print_json_value(&val, args),
-        Err(ref err) if !err.is_fatal() => error!("Error executing script: {}", err),
-        Err(err) => return Err(err),
-    }
-
-    for frameref in conn.find_elements(CssSelector, FRAME_SELECTOR, None)? {
-        conn.switch_to_frame(&frameref)?;
-        cmd_exec(conn, args)?;
-        conn.switch_to_top_frame()?;
-    }
-    Ok(())
 }
 
 /// Panics unless --port of $FF_PORT is a valid port number
@@ -307,24 +259,74 @@ fn main() {
         ("source", Some(ref args)) => println!("{}", connect_to_port(args).get_page_source().unwrap()),
         ("text", Some(ref args)) => {
             let mut conn = connect_to_port(args);
-            cmd_get_element_str_data(&mut conn, args, &|e| e.text()).unwrap();
-            conn.switch_to_top_frame().unwrap();
+            conn.switch_to_frame(None).unwrap();
+            foreach_frame(&mut conn, args, &|conn, args| {
+                foreach_element(conn, args, &|elem| {
+                    let text = elem.text()?;
+                    if !text.is_empty() {
+                        println!("{}", text);
+                    }
+                    Ok(())
+                })
+            }).unwrap();
+            conn.switch_to_frame(None).unwrap();
         }
         ("attr", Some(ref args)) => {
             let mut conn = connect_to_port(args);
             let attrname = args.value_of("ATTRNAME").unwrap();
-            cmd_get_element_str_data(&mut conn, args, &|e| e.attr(attrname)).unwrap();
-            conn.switch_to_top_frame().unwrap();
+            conn.switch_to_frame(None).unwrap();
+            foreach_frame(&mut conn, args, &|conn, args| {
+                foreach_element(conn, args, &|elem| {
+                    let text = elem.attr(attrname)?;
+                    if !text.is_empty() {
+                        println!("{}", text);
+                    }
+                    Ok(())
+                })
+            }).unwrap();
+            conn.switch_to_frame(None).unwrap();
         }
         ("exec", Some(ref args)) => {
             let mut conn = connect_to_port(args);
-            cmd_exec(&mut conn, &args).unwrap();
+            let mut js = args.value_of("SCRIPT").unwrap().to_owned();
+            if js == "-" {
+                js.clear();
+                io::stdin().read_to_string(&mut js).expect("Error reading stdin");
+            }
+
+            let mut script = Script::new(&js);
+            if let Some(iter) = args.values_of("ARG") {
+                let mut script_args: Vec<JsonValue> = Vec::new();
+                for arg in iter {
+                    let val = JsonValue::from_str(arg).expect("Script argument is invalid JSON");
+                    script_args.push(val);
+                }
+                script.arguments(script_args).unwrap();
+            }
+
+            conn.switch_to_frame(None).unwrap();
+            foreach_frame(&mut conn, args, &|conn, args| {
+                match conn.execute_script(&script) {
+                    Ok(val) => print_json_value(&val, args),
+                    Err(ref err) if !err.is_fatal() => error!("Error executing script: {}", err),
+                    Err(err) => return Err(err),
+                }
+                Ok(())
+            }).unwrap();
+            conn.switch_to_frame(None).unwrap();
         }
         ("property", Some(ref args)) => {
             let mut conn = connect_to_port(args);
             let propname = args.value_of("NAME").unwrap();
-            cmd_get_element_json_data(&mut conn, args, &|e| e.property(propname)).unwrap();
-            conn.switch_to_top_frame().unwrap();
+            conn.switch_to_frame(None).unwrap();
+            foreach_frame(&mut conn, args, &|conn, args| {
+                foreach_element(conn, args, &|elem| {
+                    let val = elem.property(propname)?;
+                    print_json_value(&val, args);
+                    Ok(())
+                })
+            }).unwrap();
+            conn.switch_to_frame(None).unwrap();
         }
         ("title", Some(ref args)) => println!("{}", connect_to_port(args).get_title().unwrap()),
         ("url", Some(ref args)) => println!("{}", connect_to_port(args).get_url().unwrap()),
