@@ -87,3 +87,13 @@ fn element_property_is_json() {
     let hidden = conn.get_element_property(&elements[0], "hidden").unwrap();
     assert_eq!(hidden, JsonValue::Bool(false));
 }
+
+#[test]
+fn frames() {
+    let _ = env_logger::init();
+    let mut conn = MarionetteConnection::connect(2828).unwrap();
+
+    conn.switch_to_frame(None).unwrap();
+    let _ = conn.get_active_frame().unwrap();
+    conn.switch_to_parent_frame().unwrap();
+}

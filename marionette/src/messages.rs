@@ -172,7 +172,6 @@ impl ElementRef {
     pub fn from_str(handle: &str) -> ElementRef {
         ElementRef { reference: handle.to_string() }
     }
-
 }
 
 impl Serialize for ElementRef {
@@ -273,10 +272,10 @@ impl FrameSwitch {
     }
 
     /// Switch to the frame given by passed element
-    pub fn from_element(focus: bool, element: &ElementRef) -> Self {
+    pub fn from_element(focus: bool, element: Option<ElementRef>) -> Self {
         FrameSwitch {
             focus: focus,
-            element: Some(element.reference.to_owned()),
+            element: element.map(|elem| elem.reference.to_owned()),
         }
     }
 }

@@ -299,15 +299,20 @@ impl MarionetteConnection {
         Ok(resp.value)
     }
 
-    pub fn switch_to_frame(&mut self, elem: &ElementRef) -> Result<()> {
+    pub fn get_active_frame(&mut self) -> Result<Option<ElementRef>> {
+        let resp: ResponseValue<_> = self.call("getActiveFrame", Empty {})?;
+        Ok(resp.value)
+    }
+
+    /// Switch to the given frame. If None switches to the top frame
+    pub fn switch_to_frame(&mut self, elem: Option<ElementRef>) -> Result<()> {
         let arg = FrameSwitch::from_element(false, elem);
         let _: Empty = self.call("switchToFrame", arg)?;
         Ok(())
     }
 
-    pub fn switch_to_top_frame(&mut self) -> Result<()> {
-        let arg = FrameSwitch::top(false);
-        let _: Empty = self.call("switchToFrame", arg)?;
+    pub fn switch_to_parent_frame(&mut self) -> Result<()> {
+        let _: Empty = self.call("switchToParentFrame", Empty {})?;
         Ok(())
     }
 
