@@ -4,6 +4,17 @@ use marionette::messages::Script;
 extern crate env_logger;
 
 #[test]
+fn script_system() {
+    let _ = env_logger::init();
+    let mut conn = MarionetteConnection::connect(2828).unwrap();
+
+    let mut script = Script::new("return 42;");
+    script.system_sandbox();
+    let res = conn.execute_script(&script).unwrap();
+    assert_eq!(res, JsonValue::from(42));
+}
+
+#[test]
 fn script() {   
     let _ = env_logger::init();
     let mut conn = MarionetteConnection::connect(2828).unwrap();

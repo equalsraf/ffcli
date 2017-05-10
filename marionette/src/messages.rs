@@ -108,6 +108,7 @@ pub type ContextValue = ResponseValue<String>;
 #[derive(Serialize, Debug)]
 pub struct Script {
     script: String,
+    sandbox: String,
     args: Value,
 }
 
@@ -115,6 +116,7 @@ impl Script {
     pub fn new(src: &str) -> Self {
         Script {
             script: src.to_owned(),
+            sandbox: "default".to_owned(),
             args: Value::Null,
         }
     }
@@ -124,6 +126,11 @@ impl Script {
     pub fn arguments<S: Serialize>(&mut self, args: S) -> Result<(), MarionetteError>{
         self.args = to_value(args)?;
         Ok(())
+    }
+
+    /// Execute script in the system sandbox
+    pub fn system_sandbox(&mut self) {
+        self.sandbox = "system".to_owned();
     }
 }
 
