@@ -2,6 +2,7 @@ use std::str::FromStr;
 use std::env;
 use std::process::{Command, Stdio};
 use std::io::{self, Read};
+use std::path::Path;
 
 extern crate ff;
 extern crate marionette;
@@ -79,6 +80,14 @@ fn cmd_go(args: &ArgMatches) -> Result<()> {
     } else {
         conn.get(url_arg)
     }
+}
+
+fn cmd_download(args: &ArgMatches) -> Result<()> {
+    let url_arg = args.value_of("URL").unwrap();
+    let path = args.value_of("FILE").unwrap();
+
+    let mut conn = connect_to_port(args);
+    ff::downloads::start(&mut conn, url_arg, Path::new(path))
 }
 
 fn cmd_windows(args: &ArgMatches) -> Result<()> {
@@ -183,6 +192,13 @@ fn main() {
                     .arg(Arg::with_name("URL")
                          .required(true)
                         ))
+        .subcommand(SubCommand::with_name("download")
+                    .arg(option_port())
+                    .about("Download URL")
+                    .arg(Arg::with_name("URL")
+                         .required(true))
+                    .arg(Arg::with_name("FILE")
+                         .required(true)))
         .subcommand(SubCommand::with_name("back")
                     .arg(option_port())
                     .about("Go back to the previous page in history"))
@@ -255,6 +271,7 @@ fn main() {
     match matches.subcommand() {
         ("go", Some(ref args)) => cmd_go(args).unwrap(),
         ("back", Some(ref args)) => connect_to_port(args).go_back().unwrap(),
+        ("download", Some(ref args)) => cmd_download(args).unwrap(),
         ("forward", Some(ref args)) => connect_to_port(args).go_forward().unwrap(),
         ("source", Some(ref args)) => println!("{}", connect_to_port(args).get_page_source().unwrap()),
         ("text", Some(ref args)) => {
