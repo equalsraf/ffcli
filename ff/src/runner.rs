@@ -48,7 +48,7 @@ pub struct FirefoxRunner {
 impl FirefoxRunner {
     /// Run a new browser instance, listening on the given port.
     /// Creates a temporary profile for this instance.
-    pub fn tmp(port: u16) -> IoResult<FirefoxRunner> {
+    pub fn tmp<P: AsRef<Path>>(port: u16, firefox_path: Option<P>) -> IoResult<FirefoxRunner> {
         let profile_tmpdir = Temp::new_dir()?;
         let mut profile = Profile::new(Some(profile_tmpdir.as_ref()))?;
 
@@ -76,7 +76,10 @@ impl FirefoxRunner {
             prefs.write()?;
         }
 
-        let bin = firefox_default_path().unwrap_or(PathBuf::from("firefox"));
+        let bin = firefox_path
+            .map(|p| p.as_ref().to_owned())
+            .or(firefox_default_path())
+            .unwrap_or(PathBuf::from("firefox"));
         let child = spawn_firefox(&bin, &profile.path)?;
 
         info!("Started firefox on port {}", port);
@@ -92,7 +95,7 @@ impl FirefoxRunner {
 
     /// Starts a new firefox instance using the profile at the given path, if the
     /// path does not exist it is created.
-    pub fn from_path<P: AsRef<Path>>(profile_path: P, port: u16) -> IoResult<FirefoxRunner> {
+    pub fn from_path<P: AsRef<Path>>(profile_path: P, port: u16, firefox_path: Option<P>) -> IoResult<FirefoxRunner> {
         fs::create_dir_all(&profile_path)?;
 
         let mut profile = Profile::new(Some(profile_path.as_ref()))?;
@@ -105,7 +108,10 @@ impl FirefoxRunner {
             prefs.write()?;
         }
 
-        let bin = firefox_default_path().unwrap_or(PathBuf::from("firefox"));
+        let bin = firefox_path
+            .map(|p| p.as_ref().to_owned())
+            .or(firefox_default_path())
+            .unwrap_or(PathBuf::from("firefox"));
         let child = spawn_firefox(&bin, &profile.path)?;
 
         info!("Started firefox on port {}", port);

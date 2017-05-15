@@ -2,7 +2,7 @@ use std::str::FromStr;
 use std::env;
 use std::process::{Command, Stdio};
 use std::io::{self, Read};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 extern crate ff;
 extern crate marionette;
@@ -37,7 +37,7 @@ fn cmd_start(args: &ArgMatches) -> Result<()> {
     if args.is_present("no-fork") {
         setup_signals();
 
-        let mut browser = ff::Browser::start(portnum, args.value_of("PROFILE"))?;
+        let mut browser = ff::Browser::start(portnum, args.value_of("PROFILE"), args.value_of("FIREFOX-BIN"))?;
         debug!("New ff session {}", browser.session_file().to_string_lossy());
 
         let status = browser.runner.process.wait()?;
@@ -197,6 +197,10 @@ fn main() {
                          .help("Profile path")
                          .long("profile")
                          .short("P"))
+                    .arg(Arg::with_name("FIREFOX-BIN")
+                         .takes_value(true)
+                         .help("Firefox binary path")
+                         .long("firefox-bin"))
                     .arg(Arg::with_name("URL")
                          .help("Open the given URL after starting"))
                     .about("Start a new browser instance"))
