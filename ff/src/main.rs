@@ -43,21 +43,24 @@ fn cmd_start(args: &ArgMatches) -> Result<()> {
         let status = browser.runner.process.wait()?;
         info!("Firefox exited with status {}", status);
     } else {
-        let mut args: Vec<_> = env::args().collect();
-        args.push("--no-fork".to_owned());
+        let mut child_args: Vec<_> = env::args().collect();
+        child_args.push("--no-fork".to_owned());
         if port_arg.is_none() {
-            args.push("--port".to_owned());
-            args.push(format!("{}", portnum));
+            child_args.push("--port".to_owned());
+            child_args.push(format!("{}", portnum));
         }
 
-        debug!("Spawning ff process {:?}", args);
-        Command::new(&args[0])
-            .args(&args[1..])
+        debug!("Spawning ff process {:?}", child_args);
+        Command::new(&child_args[0])
+            .args(&child_args[1..])
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .spawn()?;
 
-        ff::check_connection(portnum)?;
+        let mut conn = ff::check_connection(portnum)?;
+        if let Some(url) = args.value_of("URL") {
+            conn.get(&convert_url(url))?;
+        }
         println!("{}", portnum);
     }
 
@@ -71,15 +74,19 @@ fn cmd_instances() -> Result<()> {
     Ok(())
 }
 
+fn convert_url(url_in: &str) -> String {
+    if let Err(url::ParseError::RelativeUrlWithoutBase) = url::Url::parse(url_in) {
+        "https://".to_owned() + url_in
+    } else {
+        url_in.to_owned()
+    }
+}
+
 fn cmd_go(args: &ArgMatches) -> Result<()> {
     let url_arg = args.value_of("URL").unwrap();
 
     let mut conn = connect_to_port(args);
-    if let Err(url::ParseError::RelativeUrlWithoutBase) = url::Url::parse(url_arg) {
-        conn.get(&("https://".to_owned() + url_arg))
-    } else {
-        conn.get(url_arg)
-    }
+    conn.get(&convert_url(url_arg))
 }
 
 fn cmd_download(args: &ArgMatches) -> Result<()> {
@@ -185,6 +192,8 @@ fn main() {
                          .help("Profile path")
                          .long("profile")
                          .short("P"))
+                    .arg(Arg::with_name("URL")
+                         .help("Open the given URL after starting"))
                     .about("Start a new browser instance"))
         .subcommand(SubCommand::with_name("go")
                     .arg(option_port())
