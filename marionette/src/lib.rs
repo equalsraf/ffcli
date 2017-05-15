@@ -9,6 +9,8 @@ use std::str;
 use std::convert::From;
 use std::str::FromStr;
 use std::fmt;
+use std::path::Path;
+use std::env;
 
 #[macro_use]
 extern crate log;
@@ -319,6 +321,20 @@ impl MarionetteConnection {
     /// Close the application
     pub fn quit(mut self) -> Result<()> {
         let _: Empty = self.call("quitApplication", Empty {})?;
+        Ok(())
+    }
+
+    /// Install XPI from the given path
+    pub fn addon_install(mut self, path: &Path) -> Result<()> {
+        let abspath = if path.is_relative() {
+            let mut absolute_path = try!(env::current_dir());
+            absolute_path.push(path);
+            absolute_path.to_owned()
+        } else {
+            path.into()
+        };
+
+        let _: Empty = self.call("addon:install", AddonInstall { path: &abspath })?;
         Ok(())
     }
 }

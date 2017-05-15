@@ -4,6 +4,7 @@
 #![allow(non_snake_case)]
 
 use std::fmt;
+use std::path::Path;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use serde::ser::SerializeStruct;
 use serde_json::{Value, to_value};
@@ -287,3 +288,7 @@ impl FrameSwitch {
     }
 }
 
+#[derive(Serialize, Debug)]
+pub struct AddonInstall<'a> {
+    pub path: &'a Path,
+}

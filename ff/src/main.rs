@@ -2,7 +2,7 @@ use std::str::FromStr;
 use std::env;
 use std::process::{Command, Stdio};
 use std::io::{self, Read};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 extern crate ff;
 extern crate marionette;
@@ -65,6 +65,11 @@ fn cmd_start(args: &ArgMatches) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn cmd_install(args: &ArgMatches) -> Result<()> {
+    connect_to_port(args)
+        .addon_install(Path::new(args.value_of("PATH").unwrap()))
 }
 
 fn cmd_instances() -> Result<()> {
@@ -253,6 +258,11 @@ fn main() {
                     .arg(Arg::with_name("SELECTOR")
                          .required(true))
                     .about("Print element text"))
+        .subcommand(SubCommand::with_name("install")
+                    .arg(option_port())
+                    .arg(Arg::with_name("PATH")
+                         .required(true))
+                    .about("Install XPI addon"))
         .subcommand(SubCommand::with_name("instances")
                     .about("List running ff instances"))
         .subcommand(SubCommand::with_name("title")
@@ -367,6 +377,7 @@ fn main() {
         ("url", Some(ref args)) => println!("{}", connect_to_port(args).get_url().unwrap()),
         ("quit", Some(ref args)) => connect_to_port(args).quit().unwrap(),
         ("start", Some(ref args)) => cmd_start(args).expect("Unable to start browser"),
+        ("install", Some(ref args)) => cmd_install(args).expect("Unable to install addon"),
         ("instances", _) => cmd_instances().expect("Unable to list ff instances"),
         ("switch", Some(ref args)) => {
             let mut conn = connect_to_port(args);
