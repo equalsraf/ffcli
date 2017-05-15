@@ -220,6 +220,10 @@ fn main() {
                     .arg(Arg::with_name("SCRIPT")
                          .required(true)
                          .help("Javascript code"))
+                    .arg(Arg::with_name("SYSTEM")
+                         .takes_value(false)
+                         .long("system")
+                         .help("Run script in system sandbox"))
                     .arg(Arg::with_name("ARG")
                          .multiple(true)
                          .required(false)
@@ -312,6 +316,11 @@ fn main() {
             }
 
             let mut script = Script::new(&js);
+
+            if args.is_present("SYSTEM") {
+                script.system_sandbox();
+            }
+
             if let Some(iter) = args.values_of("ARG") {
                 let mut script_args: Vec<JsonValue> = Vec::new();
                 for arg in iter {
