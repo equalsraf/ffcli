@@ -37,7 +37,7 @@ fn cmd_start(args: &ArgMatches) -> Result<()> {
     if args.is_present("no-fork") {
         setup_signals();
 
-        let mut browser = ff::Browser::start(portnum, args.value_of("PROFILE"), args.value_of("FIREFOX-BIN"))?;
+        let mut browser = ff::Browser::start(portnum, args.value_of("PROFILE"), args.value_of("FIREFOX-BIN"), args.value_of("SESSION"))?;
         debug!("New ff session {}", browser.session_file().to_string_lossy());
 
         let status = browser.runner.process.wait()?;
@@ -197,6 +197,11 @@ fn main() {
                          .help("Profile path")
                          .long("profile")
                          .short("P"))
+                    .arg(Arg::with_name("SESSION")
+                         .takes_value(true)
+                         .help("Give a name to this session")
+                         .long("session")
+                         .short("S"))
                     .arg(Arg::with_name("FIREFOX-BIN")
                          .takes_value(true)
                          .help("Firefox binary path")
