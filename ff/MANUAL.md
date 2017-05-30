@@ -104,3 +104,12 @@ and the title of the window
 
 The id can be used with the switch command to switch windows.
 
+## Changing firefox preferences
+
+The firefox preferences can be inspected with __prefget__
+
+	$ ff prefget browser.uitour.enabled
+	false
+
+and modified with __prefset__. The last argument to __prefset__ is a json value, not a string.
+This means passing strings requires quoting, and in some shells double quoting.

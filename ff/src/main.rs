@@ -329,6 +329,18 @@ fn main() {
                     .arg(Arg::with_name("PATH")
                          .required(true))
                     .about("Install XPI addon"))
+        .subcommand(SubCommand::with_name("prefget")
+                    .arg(option_port())
+                    .arg(Arg::with_name("NAME")
+                         .required(true))
+                    .about("Get firefox preference"))
+        .subcommand(SubCommand::with_name("prefset")
+                    .arg(option_port())
+                    .arg(Arg::with_name("NAME")
+                         .required(true))
+                    .arg(Arg::with_name("VALUE")
+                         .required(true))
+                    .about("Set firefox preference"))
         .subcommand(SubCommand::with_name("instances")
                     .about("List running ff instances"))
         .subcommand(SubCommand::with_name("title")
@@ -438,6 +450,7 @@ it can be fixed - {}\n", ISSUES_URL);
             }).unwrap_or_exit(-1);
             conn.switch_to_frame(None).unwrap_or_exit(-1);
         }
+        ("prefget", Some(ref args)) => println!("{}", connect_to_port(args).get_pref(args.value_of("NAME").unwrap()).unwrap()),
         ("property", Some(ref args)) => {
             let mut conn = connect_to_port(args);
             let propname = args.value_of("NAME").unwrap();
@@ -450,6 +463,11 @@ it can be fixed - {}\n", ISSUES_URL);
                 })
             }).unwrap_or_exit(-1);
             conn.switch_to_frame(None).unwrap_or_exit(-1);
+        }
+        ("prefset", Some(ref args)) => {
+            let name = args.value_of("NAME").unwrap();
+            let value = JsonValue::from_str(args.value_of("VALUE").unwrap()).unwrap_or_exitmsg(-1, "Invalid JSON argument");
+            connect_to_port(args).set_pref(name, value).unwrap_or_exitmsg(-1, "Unable to get preference");
         }
         ("title", Some(ref args)) => println!("{}", connect_to_port(args).get_title().unwrap_or_exit(-1)),
         ("url", Some(ref args)) => println!("{}", connect_to_port(args).get_url().unwrap_or_exit(-1)),
