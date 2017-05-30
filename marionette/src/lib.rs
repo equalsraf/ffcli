@@ -361,6 +361,47 @@ impl MarionetteConnection {
         let _: Empty = self.call("addon:install", AddonInstall { path: &abspath })?;
         Ok(())
     }
+
+    fn with_context<T, F>(&mut self, ctx: Context, f: F) -> Result<T>
+            where F: FnOnce(&mut MarionetteConnection) -> Result<T> {
+        let prev = self.get_context()?;
+        let res = f(self);
+        if let Err(ctxerr) = self.set_context(prev.clone()) {
+            warn!("Error resetting context to {:?}: {}", prev, ctxerr);
+        }
+        res
+    }
+
+    pub fn set_pref(&mut self, name: &str, value: JsonValue) -> Result<()> {
+        let mut script = Script::new(r#"
+        Components.utils.import("resource://gre/modules/Preferences.jsm");
+        let [pref, value, defaultBranch] = arguments;
+        prefs = new Preferences({defaultBranch: defaultBranch});
+        prefs.set(pref, value);
+        "#);
+        script.arguments((name, value, false))?;
+        script.sandbox("system");
+
+        self.with_context(Context::Chrome, move |conn| {
+            conn.execute_script(&script)?;
+            Ok(())
+        })
+    }
+
+    pub fn get_pref(&mut self, name: &str) -> Result<JsonValue> {
+        let mut script = Script::new(r#"
+        Components.utils.import("resource://gre/modules/Preferences.jsm");
+        let [pref, defaultBranch, valueType] = arguments;
+        prefs = new Preferences({defaultBranch: defaultBranch});
+        return prefs.get(pref, null, valueType=Components.interfaces[valueType]);
+        "#);
+        script.arguments((name, false, "nsISupportsString"))?;
+        script.sandbox("system");
+
+        self.with_context(Context::Chrome, move |conn| {
+            conn.execute_script(&script)
+        })
+    }
 }
 
 /// A helper struct to work with `ElementRef`
@@ -399,7 +440,7 @@ impl<'a> Element<'a> {
 }
 
 /// Execution context
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Context {
     /// Web content, such as a frame
     Content,
