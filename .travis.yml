@@ -1,11 +1,6 @@
 language: rust
 rust:
   - stable
-  - beta
-  - nightly
-matrix:
-  allow_failures:
-    - rust: nightly
 env:
   # Test with different FF versions the $CHECKSUM is the output from sha256sum
   - FF_URL="https://download-installer.cdn.mozilla.net/pub/firefox/releases/52.0.2/linux-x86_64/en-US/firefox-52.0.2.tar.bz2" CHECKSUM="a37f817182da13dd34520039da8d0ddeb8bad7dd260ec8fb79c61e770bbaf83f  firefox-52.0.2.tar.bz2"

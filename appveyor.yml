@@ -7,11 +7,6 @@ environment:
       CHANNEL: stable
     - TARGET: i686-pc-windows-msvc
       CHANNEL: stable
-    # Beta channel
-    - TARGET: i686-pc-windows-gnu
-      CHANNEL: beta
-    - TARGET: i686-pc-windows-msvc
-      CHANNEL: beta
 
 # Install Rust and Cargo
 # (Based on from https://github.com/rust-lang/libc/blob/master/appveyor.yml)
