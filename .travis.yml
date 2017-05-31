@@ -4,6 +4,7 @@ rust:
 env:
   # Test with different FF versions the $CHECKSUM is the output from sha256sum
   - FF_URL="https://download-installer.cdn.mozilla.net/pub/firefox/releases/52.0.2/linux-x86_64/en-US/firefox-52.0.2.tar.bz2" CHECKSUM="a37f817182da13dd34520039da8d0ddeb8bad7dd260ec8fb79c61e770bbaf83f  firefox-52.0.2.tar.bz2"
+  - FF_URL="https://download-installer.cdn.mozilla.net/pub/firefox/releases/53.0.3/linux-x86_64/en-US/firefox-53.0.3.tar.bz2" CHECKSUM="6d338e98b1ac1078738dcdab11d6a0c855e5087fa0d7d99dbffa521d16a45327  firefox-53.0.3.tar.bz2"
 addons:
   apt:
     packages:
