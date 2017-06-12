@@ -1,7 +1,7 @@
 use std::str::FromStr;
 use std::env;
-use std::process::{Command, Stdio};
-use std::io::{self, Read};
+use std::process::{Command, Stdio, exit};
+use std::io::{self, Read, Write};
 use std::path::Path;
 
 extern crate ff;
@@ -17,6 +17,53 @@ extern crate url;
 #[cfg(unix)]
 extern crate chan_signal;
 
+trait ExitOnError<T>: Sized {
+    fn exit(code: i32, msg: Option<&str>) -> ! {
+        if let Some(msg) = msg {
+            let _ = writeln!(&mut std::io::stderr(), "{}", msg);
+        }
+        exit(code);
+    }
+
+    fn unwrap_or_exit(self, code: i32) -> T;
+    fn unwrap_or_exitmsg(self, code: i32, msg: &str) -> T;
+}
+
+impl<T, E: std::error::Error> ExitOnError<T> for std::result::Result<T, E> {
+    fn unwrap_or_exit(self, code: i32) -> T {
+        match self {
+            Ok(res) => res,
+            Err(err) => {
+                Self::exit(code, Some(err.description()));
+            }
+        }
+    }
+
+    fn unwrap_or_exitmsg(self, code: i32, msg: &str) -> T {
+        match self {
+            Ok(res) => res,
+            Err(err) => {
+                Self::exit(code, Some(&format!("{}: {}", msg, err.description())));
+            }
+        }
+    }
+}
+impl<T> ExitOnError<T> for Option<T> {
+    fn unwrap_or_exit(self, code: i32) -> T {
+        match self {
+            Some(res) => res,
+            None => Self::exit(code, None),
+        }
+    }
+    fn unwrap_or_exitmsg(self, code: i32, msg: &str) -> T {
+        match self {
+            Some(res) => res,
+            None => Self::exit(code, Some(msg)),
+        }
+    }
+}
+
+
 #[cfg(unix)]
 fn setup_signals() {
     // For now Ignore SIGINT
@@ -29,7 +76,7 @@ fn cmd_start(args: &ArgMatches) -> Result<()> {
 
     let port_arg = args.value_of("PORT")
         .map(|val| val.to_owned())
-        .map(|ref s| u16::from_str(s).expect("Invalid port argument"));
+        .map(|ref s| u16::from_str(s).unwrap_or_exitmsg(-1, "Invalid port argument"));
 
     // Check TCP port availability
     let portnum = ff::check_tcp_port(port_arg)?;
@@ -154,11 +201,11 @@ fn connect_to_port(args: &ArgMatches) -> MarionetteConnection {
     let port_arg = args.value_of("PORT")
         .map(|val| val.to_owned())
         .or_else(|| env::var("FF_PORT").ok())
-        .map(|ref s| u16::from_str(s).expect("Invalid port argument"));
+        .map(|ref s| u16::from_str(s).unwrap_or_exitmsg(-1, "Invalid port argument"));
 
-    let port = port_arg.expect("No port given, use --port or $FF_PORT");
+    let port = port_arg.unwrap_or_exitmsg(-1, "No port given, use --port or $FF_PORT");
     MarionetteConnection::connect(port)
-        .expect("Unable to connect to firefox")
+        .unwrap_or_exitmsg(-1, "Unable to connect to firefox")
 }
 
 fn option_port<'a, 'b>() -> Arg<'a, 'b> {
@@ -301,14 +348,14 @@ fn main() {
 
 
     match matches.subcommand() {
-        ("go", Some(ref args)) => cmd_go(args).unwrap(),
-        ("back", Some(ref args)) => connect_to_port(args).go_back().unwrap(),
-        ("download", Some(ref args)) => cmd_download(args).unwrap(),
-        ("forward", Some(ref args)) => connect_to_port(args).go_forward().unwrap(),
-        ("source", Some(ref args)) => println!("{}", connect_to_port(args).get_page_source().unwrap()),
+        ("go", Some(ref args)) => cmd_go(args).unwrap_or_exit(-1),
+        ("back", Some(ref args)) => connect_to_port(args).go_back().unwrap_or_exit(-1),
+        ("download", Some(ref args)) => cmd_download(args).unwrap_or_exit(-1),
+        ("forward", Some(ref args)) => connect_to_port(args).go_forward().unwrap_or_exit(-1),
+        ("source", Some(ref args)) => println!("{}", connect_to_port(args).get_page_source().unwrap_or_exit(-1)),
         ("text", Some(ref args)) => {
             let mut conn = connect_to_port(args);
-            conn.switch_to_frame(None).unwrap();
+            conn.switch_to_frame(None).unwrap_or_exit(-1);
             foreach_frame(&mut conn, args, &|conn, args| {
                 foreach_element(conn, args, &|elem| {
                     let text = elem.text()?;
@@ -317,13 +364,13 @@ fn main() {
                     }
                     Ok(())
                 })
-            }).unwrap();
-            conn.switch_to_frame(None).unwrap();
+            }).unwrap_or_exit(-1);
+            conn.switch_to_frame(None).unwrap_or_exit(-1);
         }
         ("attr", Some(ref args)) => {
             let mut conn = connect_to_port(args);
             let attrname = args.value_of("ATTRNAME").unwrap();
-            conn.switch_to_frame(None).unwrap();
+            conn.switch_to_frame(None).unwrap_or_exit(-1);
             foreach_frame(&mut conn, args, &|conn, args| {
                 foreach_element(conn, args, &|elem| {
                     let text = elem.attr(attrname)?;
@@ -332,15 +379,15 @@ fn main() {
                     }
                     Ok(())
                 })
-            }).unwrap();
-            conn.switch_to_frame(None).unwrap();
+            }).unwrap_or_exit(-1);
+            conn.switch_to_frame(None).unwrap_or_exit(-1);
         }
         ("exec", Some(ref args)) => {
             let mut conn = connect_to_port(args);
             let mut js = args.value_of("SCRIPT").unwrap().to_owned();
             if js == "-" {
                 js.clear();
-                io::stdin().read_to_string(&mut js).expect("Error reading stdin");
+                io::stdin().read_to_string(&mut js).unwrap_or_exitmsg(-1, "Error reading stdin");
             }
 
             let mut script = Script::new(&js);
@@ -352,13 +399,13 @@ fn main() {
             if let Some(iter) = args.values_of("ARG") {
                 let mut script_args: Vec<JsonValue> = Vec::new();
                 for arg in iter {
-                    let val = JsonValue::from_str(arg).expect("Script argument is invalid JSON");
+                    let val = JsonValue::from_str(arg).unwrap_or_exitmsg(-1, "Script argument is invalid JSON");
                     script_args.push(val);
                 }
-                script.arguments(script_args).unwrap();
+                script.arguments(script_args).unwrap_or_exit(-1);
             }
 
-            conn.switch_to_frame(None).unwrap();
+            conn.switch_to_frame(None).unwrap_or_exit(-1);
             foreach_frame(&mut conn, args, &|conn, args| {
                 match conn.execute_script(&script) {
                     Ok(val) => print_json_value(&val, args),
@@ -366,34 +413,34 @@ fn main() {
                     Err(err) => return Err(err),
                 }
                 Ok(())
-            }).unwrap();
-            conn.switch_to_frame(None).unwrap();
+            }).unwrap_or_exit(-1);
+            conn.switch_to_frame(None).unwrap_or_exit(-1);
         }
         ("property", Some(ref args)) => {
             let mut conn = connect_to_port(args);
             let propname = args.value_of("NAME").unwrap();
-            conn.switch_to_frame(None).unwrap();
+            conn.switch_to_frame(None).unwrap_or_exit(-1);
             foreach_frame(&mut conn, args, &|conn, args| {
                 foreach_element(conn, args, &|elem| {
                     let val = elem.property(propname)?;
                     print_json_value(&val, args);
                     Ok(())
                 })
-            }).unwrap();
-            conn.switch_to_frame(None).unwrap();
+            }).unwrap_or_exit(-1);
+            conn.switch_to_frame(None).unwrap_or_exit(-1);
         }
-        ("title", Some(ref args)) => println!("{}", connect_to_port(args).get_title().unwrap()),
-        ("url", Some(ref args)) => println!("{}", connect_to_port(args).get_url().unwrap()),
-        ("quit", Some(ref args)) => connect_to_port(args).quit().unwrap(),
-        ("start", Some(ref args)) => cmd_start(args).expect("Unable to start browser"),
-        ("install", Some(ref args)) => cmd_install(args).expect("Unable to install addon"),
-        ("instances", _) => cmd_instances().expect("Unable to list ff instances"),
+        ("title", Some(ref args)) => println!("{}", connect_to_port(args).get_title().unwrap_or_exit(-1)),
+        ("url", Some(ref args)) => println!("{}", connect_to_port(args).get_url().unwrap_or_exit(-1)),
+        ("quit", Some(ref args)) => connect_to_port(args).quit().unwrap_or_exit(-1),
+        ("start", Some(ref args)) => cmd_start(args).unwrap_or_exitmsg(-1, "Unable to start browser"),
+        ("install", Some(ref args)) => cmd_install(args).unwrap_or_exitmsg(-1, "Unable to install addon"),
+        ("instances", _) => cmd_instances().unwrap_or_exitmsg(-1, "Unable to list ff instances"),
         ("switch", Some(ref args)) => {
             let mut conn = connect_to_port(args);
             let handle = WindowHandle::from_str(args.value_of("WINDOW").unwrap());
-            conn.switch_to_window(&handle).unwrap();
+            conn.switch_to_window(&handle).unwrap_or_exit(-1);
         }
-        ("windows", Some(ref args)) => cmd_windows(args).unwrap(),
+        ("windows", Some(ref args)) => cmd_windows(args).unwrap_or_exit(-1),
         _ => panic!("Unsupported command"),
     }
 }

@@ -74,6 +74,21 @@ impl fmt::Display for MarionetteError {
     }
 }
 
+impl std::error::Error for MarionetteError {
+    fn description(&self) -> &str {
+        match *self {
+            MarionetteError::Io(ref err) => err.description(),
+            MarionetteError::JSON(ref err) => err.description(),
+            MarionetteError::Call(_) => "The marionette API call failed",
+            MarionetteError::UnexpectedType => "Found unexpected type in marionette message",
+            MarionetteError::InvalidMsgId => "Invalid msg id in marionette message",
+            MarionetteError::InvalidResponseArray => "Invalid response array in marionette message",
+            MarionetteError::UnsupportedProtocolVersion => "Browser uses unsupported protocol version",
+            MarionetteError::UnsupportedContext(_) => "Unsupported context",
+        }
+    }
+}
+
 pub type Result<T> = std::result::Result<T, MarionetteError>;
 
 pub mod messages;
