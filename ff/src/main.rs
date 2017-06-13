@@ -3,6 +3,7 @@ use std::env;
 use std::process::{Command, Stdio, exit};
 use std::io::{self, Read, Write};
 use std::path::Path;
+use std::panic;
 
 extern crate ff;
 extern crate marionette;
@@ -16,6 +17,8 @@ extern crate stderrlog;
 extern crate url;
 #[cfg(unix)]
 extern crate chan_signal;
+
+const ISSUES_URL: &'static str = "https://github.com/equalsraf/ffcli/issues";
 
 trait ExitOnError<T>: Sized {
     fn exit(code: i32, msg: Option<&str>) -> ! {
@@ -346,6 +349,12 @@ fn main() {
             .init()
             .expect("Unable to initialize stderr output");
 
+    let def_panic_hook = panic::take_hook();
+    panic::set_hook(Box::new(move |info| {
+        let _ = writeln!(&mut std::io::stderr(), "ff has just crashed, this is likely a bug on our side. Please take the time to report this issue so 
+it can be fixed - {}\n", ISSUES_URL);
+        def_panic_hook(info);
+    }));
 
     match matches.subcommand() {
         ("go", Some(ref args)) => cmd_go(args).unwrap_or_exit(-1),
