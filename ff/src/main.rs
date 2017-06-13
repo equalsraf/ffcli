@@ -9,6 +9,7 @@ extern crate ff;
 extern crate marionette;
 use marionette::{MarionetteConnection, Element, JsonValue, WindowHandle, Result, Script};
 use marionette::QueryMethod::CssSelector;
+#[macro_use]
 extern crate clap;
 use clap::{App, Arg, ArgMatches, SubCommand, AppSettings};
 #[macro_use]
@@ -230,6 +231,7 @@ fn option_json_filters<'a, 'b>() -> [Arg<'a, 'b>; 1] {
 fn main() {
     let matches = App::new("ff")
         .about("Firefox from your shell")
+        .version(crate_version!())
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .setting(AppSettings::VersionlessSubcommands)
         .arg(Arg::with_name("verbose")
