@@ -12,6 +12,8 @@ use std::io::Read;
 use std::process::{Command, Stdio};
 use std::env;
 use std::path::PathBuf;
+use std::thread;
+use std::time::Duration;
 
 extern crate pulldown_cmark;
 use pulldown_cmark::{Parser, Event, Tag};
@@ -83,6 +85,7 @@ fn manual() {
 
                 for line in s.lines().filter(|line| line.starts_with('$')) {
                     run_shell_command(&line[1..]);
+                    thread::sleep(Duration::new(3, 1));
                 }
             }
             _ => (),
