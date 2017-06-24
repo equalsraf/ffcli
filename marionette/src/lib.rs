@@ -273,6 +273,15 @@ impl MarionetteConnection {
         Ok(resp.value)
     }
 
+    /// Execute async script
+    ///
+    /// Scripts executed this way can terminate with a result using the function
+    /// `marionetteScriptFinished(result)`.
+    pub fn execute_async_script(&mut self, script: &Script) -> Result<JsonValue> {
+        let resp: ResponseValue<_> = self.call("executeAsyncScript", script)?;
+        Ok(resp.value)
+    }
+
     /// Returns the page source
     pub fn get_page_source(&mut self) -> Result<String> {
         let resp: ResponseValue<_> = self.call("getPageSource", Empty {})?;

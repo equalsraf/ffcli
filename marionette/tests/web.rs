@@ -25,6 +25,17 @@ fn script() {
 }
 
 #[test]
+fn async_script() {
+    let _ = env_logger::init();
+    let mut conn = MarionetteConnection::connect(2828).unwrap();
+
+    // async scripts terminate using marionetteScriptFinished()
+    let script = Script::new("marionetteScriptFinished(42); return 1;");
+    let res = conn.execute_async_script(&script).unwrap();
+    assert_eq!(res, JsonValue::from(42));
+}
+
+#[test]
 fn script_arguments() {   
     let _ = env_logger::init();
     let mut conn = MarionetteConnection::connect(2828).unwrap();

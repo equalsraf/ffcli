@@ -118,7 +118,9 @@ impl Script {
         Script {
             script: src.to_owned(),
             sandbox: "default".to_owned(),
-            args: Value::Null,
+            // execute_script accepts null here, but execute_async_script does not
+            // default to an empty array
+            args: Value::Array(Vec::new()),
         }
     }
 

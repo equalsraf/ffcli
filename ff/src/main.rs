@@ -299,6 +299,10 @@ fn main() {
                          .takes_value(false)
                          .long("system")
                          .help("Run script in system sandbox"))
+                    .arg(Arg::with_name("ASYNC")
+                         .takes_value(false)
+                         .long("async")
+                         .help("Run asynchronous script"))
                     .arg(Arg::with_name("ARG")
                          .multiple(true)
                          .required(false)
@@ -418,7 +422,13 @@ it can be fixed - {}\n", ISSUES_URL);
 
             conn.switch_to_frame(None).unwrap_or_exit(-1);
             foreach_frame(&mut conn, args, &|conn, args| {
-                match conn.execute_script(&script) {
+                let res = if args.is_present("ASYNC") {
+                    conn.execute_async_script(&script)
+                } else {
+                    conn.execute_script(&script)
+                };
+
+                match res {
                     Ok(val) => print_json_value(&val, args),
                     Err(ref err) if !err.is_fatal() => error!("Error executing script: {}", err),
                     Err(err) => return Err(err),
