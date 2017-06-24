@@ -93,7 +93,7 @@ fn elements() {
         .next().unwrap();
     println!("{}", text);
 
-    for element_ref in &conn.find_elements(QueryMethod::CssSelector, "a", None).unwrap()[..10] {
+    for element_ref in &conn.find_elements(QueryMethod::CssSelector, "a", None).unwrap() {
         let mut a = Element::new(&mut conn, &element_ref);
         println!("{}", a.text().unwrap());
     }
