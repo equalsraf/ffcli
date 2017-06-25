@@ -33,6 +33,7 @@ script:
   - export PATH=$PATH:$(pwd)/target/debug
   - ff -vvv start --port 7766
   - export FF_PORT=7766
+  - sleep 10
   - cargo test --all --verbose
   # bash tests
   - ff/tests/runner.sh
