@@ -9,7 +9,7 @@ fn script_system() {
     let mut conn = MarionetteConnection::connect(2828).unwrap();
 
     let mut script = Script::new("return 42;");
-    script.system_sandbox();
+    script.sandbox("system");
     let res = conn.execute_script(&script).unwrap();
     assert_eq!(res, JsonValue::from(42));
 }

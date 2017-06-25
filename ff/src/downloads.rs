@@ -9,7 +9,7 @@ use std::env;
 /// Start a new download.
 pub fn start(conn: &mut MarionetteConnection, url: &str, path: &Path) -> Result<()> {
     let mut s = Script::new(include_str!("js/create_download.js"));
-    s.system_sandbox();
+    s.sandbox("system");
 
     if path.is_relative() {
         let mut absolute_path = try!(env::current_dir());

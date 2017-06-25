@@ -131,9 +131,9 @@ impl Script {
         Ok(())
     }
 
-    /// Execute script in the system sandbox
-    pub fn system_sandbox(&mut self) {
-        self.sandbox = "system".to_owned();
+    /// Execute the script in a named sandbox
+    pub fn sandbox(&mut self, name: &str) {
+        self.sandbox = name.to_owned()
     }
 }
 

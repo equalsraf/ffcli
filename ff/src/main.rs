@@ -295,14 +295,15 @@ fn main() {
                     .arg(Arg::with_name("SCRIPT")
                          .required(true)
                          .help("Javascript code"))
-                    .arg(Arg::with_name("SYSTEM")
-                         .takes_value(false)
-                         .long("system")
-                         .help("Run script in system sandbox"))
                     .arg(Arg::with_name("ASYNC")
                          .takes_value(false)
                          .long("async")
                          .help("Run asynchronous script"))
+                    .arg(Arg::with_name("SANDBOX")
+                         .takes_value(true)
+                         .long("sandbox")
+                         .required(false)
+                         .help("Sandbox name"))
                     .arg(Arg::with_name("ARG")
                          .multiple(true)
                          .required(false)
@@ -407,8 +408,8 @@ it can be fixed - {}\n", ISSUES_URL);
 
             let mut script = Script::new(&js);
 
-            if args.is_present("SYSTEM") {
-                script.system_sandbox();
+            if args.is_present("SANDBOX") {
+                script.sandbox(args.value_of("SANDBOX").unwrap());
             }
 
             if let Some(iter) = args.values_of("ARG") {
