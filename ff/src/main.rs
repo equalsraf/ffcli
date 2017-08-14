@@ -470,7 +470,7 @@ it can be fixed - {}\n", ISSUES_URL);
         ("prefset", Some(ref args)) => {
             let name = args.value_of("NAME").unwrap();
             let value = JsonValue::from_str(args.value_of("VALUE").unwrap()).unwrap_or_exitmsg(-1, "Invalid JSON argument");
-            connect_to_port(args).set_pref(name, value).unwrap_or_exitmsg(-1, "Unable to get preference");
+            connect_to_port(args).set_pref(name, value).unwrap_or_exitmsg(-1, "Unable to set preference");
         }
         ("title", Some(ref args)) => println!("{}", connect_to_port(args).get_title().unwrap_or_exit(-1)),
         ("url", Some(ref args)) => println!("{}", connect_to_port(args).get_url().unwrap_or_exit(-1)),
