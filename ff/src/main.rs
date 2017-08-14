@@ -357,6 +357,9 @@ fn main() {
                     .about("List browser windows"))
         .subcommand(SubCommand::with_name("switch")
                     .arg(option_port())
+                    .arg(Arg::with_name("index")
+                         .help("Treat WINDOW as an index instead of a window id")
+                         .long("idx"))
                     .arg(Arg::with_name("WINDOW")
                          .required(true))
                     .about("Switch browser window"))
@@ -477,8 +480,20 @@ it can be fixed - {}\n", ISSUES_URL);
         ("instances", _) => cmd_instances().unwrap_or_exitmsg(-1, "Unable to list ff instances"),
         ("switch", Some(ref args)) => {
             let mut conn = connect_to_port(args);
-            let handle = WindowHandle::from_str(args.value_of("WINDOW").unwrap());
-            conn.switch_to_window(&handle).unwrap_or_exit(-1);
+            let handle = if args.is_present("index") {
+                let idx = usize::from_str(args.value_of("WINDOW").unwrap())
+                    .expect("Invalid WINDOW index");
+                let mut handles = conn.get_window_handles()
+                    .unwrap_or_exitmsg(-1, "Unable to get window list");
+                let handle = handles.drain((..))
+                    .nth(idx)
+                    .unwrap_or_exitmsg(-1, "Index is invalid");
+                handle
+            } else {
+                WindowHandle::from_str(args.value_of("WINDOW").unwrap())
+            };
+            conn.switch_to_window(&handle)
+                .unwrap_or_exitmsg(-1, "Unable to switch window");
         }
         ("windows", Some(ref args)) => cmd_windows(args).unwrap_or_exit(-1),
         _ => panic!("Unsupported command"),
