@@ -370,6 +370,7 @@ impl MarionetteConnection {
     fn with_context<T, F>(&mut self, ctx: Context, f: F) -> Result<T>
             where F: FnOnce(&mut MarionetteConnection) -> Result<T> {
         let prev = self.get_context()?;
+        self.set_context(ctx)?;
         let res = f(self);
         if let Err(ctxerr) = self.set_context(prev.clone()) {
             warn!("Error resetting context to {:?}: {}", prev, ctxerr);
