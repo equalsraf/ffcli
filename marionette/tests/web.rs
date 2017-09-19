@@ -48,7 +48,7 @@ fn script_arguments() {
 }
 
 #[test]
-fn script_timeout() {
+fn script_global_timeout() {
     let _ = env_logger::init();
     let mut conn = MarionetteConnection::connect(2828).unwrap();
 
@@ -72,6 +72,32 @@ fn script_timeout() {
     };
     conn.set_timeouts(t).unwrap();
     let res = conn.execute_async_script(&script).unwrap();
+    assert_eq!(res, JsonValue::from(42));
+}
+
+#[test]
+fn script_timeout() {
+    let _ = env_logger::init();
+    let mut conn = MarionetteConnection::connect(2828).unwrap();
+
+    let mut script = Script::new(r#"
+            setTimeout(function() {
+                marionetteScriptFinished(42);
+            }, 3000);
+            "#);
+    script.timeout(10);
+    assert!(conn.execute_async_script(&script).is_err());
+
+    script.timeout(30001);
+    let res = conn.execute_async_script(&script).unwrap();
+    assert_eq!(res, JsonValue::from(42));
+
+    let t = Timeouts {
+        script: 1000,
+        pageLoad: 10000,
+        implicit: 10000,
+    };
+    conn.set_timeouts(t).unwrap();
     assert_eq!(res, JsonValue::from(42));
 }
 

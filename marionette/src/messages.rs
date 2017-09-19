@@ -122,6 +122,7 @@ pub struct Script {
     script: String,
     sandbox: String,
     args: Value,
+    scriptTimeout: Option<u64>,
 }
 
 impl Script {
@@ -132,6 +133,7 @@ impl Script {
             // execute_script accepts null here, but execute_async_script does not
             // default to an empty array
             args: Value::Array(Vec::new()),
+            scriptTimeout: None,
         }
     }
 
@@ -145,6 +147,13 @@ impl Script {
     /// Execute the script in a named sandbox
     pub fn sandbox(&mut self, name: &str) {
         self.sandbox = name.to_owned()
+    }
+
+    /// Set execution timeout for script (ms)
+    ///
+    /// This value overrides the global scriptTimeout.
+    pub fn timeout(&mut self, timeout_ms: u64) {
+        self.scriptTimeout = Some(timeout_ms)
     }
 }
 
