@@ -273,6 +273,11 @@ impl MarionetteConnection {
         Ok(resp.value)
     }
 
+    pub fn set_timeouts(&mut self, t: Timeouts) -> Result<()> {
+        let resp: Empty = self.call("timeouts", t)?;
+        Ok(())
+    }
+
     /// Execute async script
     ///
     /// Scripts executed this way can terminate with a result using the function

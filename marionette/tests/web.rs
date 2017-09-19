@@ -1,6 +1,7 @@
 extern crate marionette;
 use marionette::*;
 use marionette::messages::Script;
+use marionette::messages::Timeouts;
 extern crate env_logger;
 
 #[test]
@@ -44,6 +45,34 @@ fn script_arguments() {
     script.arguments(vec![84]).unwrap();
     let res = conn.execute_script(&script).unwrap();
     assert_eq!(res, JsonValue::from(84));
+}
+
+#[test]
+fn script_timeout() {
+    let _ = env_logger::init();
+    let mut conn = MarionetteConnection::connect(2828).unwrap();
+
+    let t = Timeouts {
+        script: 1000,
+        pageLoad: 10000,
+        implicit: 10000,
+    };
+    conn.set_timeouts(t).unwrap();
+    let script = Script::new(r#"
+            setTimeout(function() {
+                marionetteScriptFinished(42);
+            }, 3000);
+            "#);
+    assert!(conn.execute_async_script(&script).is_err());
+
+    let t = Timeouts {
+        script: 11000,
+        pageLoad: 10000,
+        implicit: 10000,
+    };
+    conn.set_timeouts(t).unwrap();
+    let res = conn.execute_async_script(&script).unwrap();
+    assert_eq!(res, JsonValue::from(42));
 }
 
 #[test]

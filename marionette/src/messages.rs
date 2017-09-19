@@ -32,6 +32,17 @@ pub struct NewSessionResponse {
 #[derive(Deserialize, Debug, Serialize)]
 pub struct Empty {}
 
+/// Sets various timeout parameters (in ms)
+#[derive(Serialize, Debug)]
+pub struct Timeouts {
+    /// when to interrupt a script that is being evaluated
+    pub script: u64,
+    /// the timeout limit used to interrupt navigation of the browsing context
+    pub pageLoad: u64,
+    /// the timeout of when to abort when locating an element
+    pub implicit: u64,
+}
+
 /// Some responses use a type wrapped in a json object
 /// with the value attribute
 #[derive(Deserialize, Serialize, Debug)]
