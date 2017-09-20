@@ -7,6 +7,7 @@ cargo build --verbose --all
 set RUST_TEST_THREADS=1
 set RUST_LOG=marionette=debug,ff=debug,manual=debug
 set RUST_BACKTRACE=1
+set MOZ_HEADLESS=1
 
 :: Some tests in the manual require a running instance,
 :: Windows makes this a bit harder because we cannot write over 
