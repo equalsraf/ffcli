@@ -99,6 +99,7 @@ pub struct MarionetteConnection {
     reader: BufReader<TcpStream>,
     writer: TcpStream,
     msgid: u64,
+    timeouts: Option<Timeouts>,
 }
 
 impl MarionetteConnection {
@@ -113,9 +114,11 @@ impl MarionetteConnection {
                 reader: reader,
                 writer: stream,
                 msgid: 0,
+                timeouts: None,
             };
-            conn.new_session()?;
+            let resp = conn.new_session()?;
 
+            conn.timeouts = resp.timeouts;
             Ok(conn)
         } else {
             Err(MarionetteError::UnsupportedProtocolVersion)
@@ -273,9 +276,15 @@ impl MarionetteConnection {
         Ok(resp.value)
     }
 
+    /// Sets global timeouts for various operations
     pub fn set_timeouts(&mut self, t: Timeouts) -> Result<()> {
-        let _: Empty = self.call("timeouts", t)?;
+        let _: Empty = self.call("timeouts", &t)?;
+        self.timeouts = Some(t);
         Ok(())
+    }
+
+    pub fn timeouts(&self) -> Option<&Timeouts> {
+        self.timeouts.as_ref()
     }
 
     /// Execute async script

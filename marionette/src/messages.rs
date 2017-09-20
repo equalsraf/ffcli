@@ -27,13 +27,14 @@ pub struct ErrorObject {
 #[derive(Deserialize, Debug)]
 pub struct NewSessionResponse {
     pub sessionId: String,
+    pub timeouts: Option<Timeouts>,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
 pub struct Empty {}
 
 /// Sets various timeout parameters (in ms)
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Timeouts {
     /// when to interrupt a script that is being evaluated
     pub script: u64,

@@ -38,3 +38,10 @@ fn logs_do_not_persist_accross_connections() {
     let logs = conn.get_logs().unwrap();
     assert!(logs.is_empty());
 }
+
+#[test]
+fn timeouts_are_set() {
+    let _ = env_logger::init();
+    let mut conn = MarionetteConnection::connect(2828).unwrap();
+    assert!(conn.timeouts().is_some());
+}
