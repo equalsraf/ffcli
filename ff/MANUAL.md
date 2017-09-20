@@ -93,6 +93,11 @@ Scripts can also be passed from stdin
 	$ echo "return 42;" | ff exec -
 	42
 
+You can execute async scripts, and force a maximum timeout of 10 seconds
+
+	$ ff exec --async --timeout 10000 "setTimeout(function () { marionetteScriptFinished(42) }, 5000);"
+	42
+
 ## Windows/tabs
 
 You can list the browser windows using the windows command, each line includes an id
