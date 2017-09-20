@@ -274,7 +274,7 @@ impl MarionetteConnection {
     }
 
     pub fn set_timeouts(&mut self, t: Timeouts) -> Result<()> {
-        let resp: Empty = self.call("timeouts", t)?;
+        let _: Empty = self.call("timeouts", t)?;
         Ok(())
     }
 
