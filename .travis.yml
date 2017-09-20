@@ -11,7 +11,7 @@ before_script:
   - tar axf $FNAME
   - export PATH=$PWD/firefox:$PATH
   - which firefox
-  - MOZ_HEADLESS=1 firefox --marionette &
+  - MOZ_HEADLESS=1 firefox --marionette 2>/dev/null &
 script:
   - cargo build --verbose --all
   # firefox can only have one active connection/session
