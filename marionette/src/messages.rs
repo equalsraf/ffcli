@@ -5,6 +5,7 @@
 
 use std::fmt;
 use std::path::Path;
+use std::collections::HashMap;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use serde::ser::SerializeStruct;
 use serde_json::{Value, to_value};
@@ -22,6 +23,37 @@ pub struct ErrorObject {
     pub error: String,
     pub message: String,
     pub stacktrace: String,
+}
+
+pub enum Capability {
+    PageLoadStrategy(String),
+}
+
+#[derive(Serialize, Debug)]
+pub struct Capabilities {
+    requiredCapabilities: HashMap<String, Value>,
+}
+
+#[derive(Serialize, Debug)]
+pub struct NewSessionRequest {
+    capabilities: Capabilities,
+}
+
+impl NewSessionRequest {
+    pub fn new() -> Self {
+        NewSessionRequest {
+            capabilities: Capabilities {
+                requiredCapabilities: HashMap::new(),
+            }
+        }
+    }
+
+    pub fn required(&mut self, cap: Capability) {
+        match cap {
+            Capability::PageLoadStrategy(s) =>
+                self.capabilities.requiredCapabilities.insert("pageLoadStrategy".to_string(), Value::String(s)),
+        };
+    }
 }
 
 #[derive(Deserialize, Debug)]

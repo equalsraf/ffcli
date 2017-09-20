@@ -116,7 +116,8 @@ impl MarionetteConnection {
                 msgid: 0,
                 timeouts: None,
             };
-            let resp = conn.new_session()?;
+            let mut options = NewSessionRequest::new();
+            let resp = conn.new_session(options)?;
 
             conn.timeouts = resp.timeouts;
             Ok(conn)
@@ -188,8 +189,8 @@ impl MarionetteConnection {
     }
 
     // AFAIK the semantics for newSession is that it should be called for each connection
-    fn new_session(&mut self) -> Result<NewSessionResponse> {
-        self.call("newSession", Empty {})
+    fn new_session(&mut self, options: NewSessionRequest) -> Result<NewSessionResponse> {
+        self.call("newSession", options)
     }
 
     /// Refresh the current page
