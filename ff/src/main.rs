@@ -304,6 +304,11 @@ fn main() {
                          .long("sandbox")
                          .required(false)
                          .help("Sandbox name"))
+                    .arg(Arg::with_name("TIMEOUT")
+                         .takes_value(true)
+                         .long("timeout")
+                         .required(false)
+                         .help("Timeout script execution after TIMEOUT milliseconds"))
                     .arg(Arg::with_name("ARG")
                          .multiple(true)
                          .required(false)
@@ -425,6 +430,12 @@ it can be fixed - {}\n", ISSUES_URL);
 
             if args.is_present("SANDBOX") {
                 script.sandbox(args.value_of("SANDBOX").unwrap());
+            }
+
+            if let Some(s_timeout) = args.value_of("TIMEOUT") {
+                let ms = u64::from_str(s_timeout)
+                    .expect("Invalid TIMEOUT value");
+                script.timeout(ms);
             }
 
             if let Some(iter) = args.values_of("ARG") {
