@@ -3,25 +3,15 @@ rust:
   - stable
 env:
   # Test with different FF versions the $CHECKSUM is the output from sha256sum
-  - FF_URL="https://download-installer.cdn.mozilla.net/pub/firefox/releases/52.0.2/linux-x86_64/en-US/firefox-52.0.2.tar.bz2" CHECKSUM="a37f817182da13dd34520039da8d0ddeb8bad7dd260ec8fb79c61e770bbaf83f  firefox-52.0.2.tar.bz2"
-  - FF_URL="https://download-installer.cdn.mozilla.net/pub/firefox/releases/53.0.3/linux-x86_64/en-US/firefox-53.0.3.tar.bz2" CHECKSUM="6d338e98b1ac1078738dcdab11d6a0c855e5087fa0d7d99dbffa521d16a45327  firefox-53.0.3.tar.bz2"
-addons:
-  apt:
-    packages:
-    - firefox
-    - xvfb
+  - FF_URL="https://download-installer.cdn.mozilla.net/pub/firefox/releases/55.0.3/linux-x86_64/en-US/firefox-55.0.3.tar.bz2" CHECKSUM="f0fd11357de7250660f1a5c5b209c44de1d0f50bb1d3444dd2afad6b41e15b9d  firefox-55.0.3.tar.bz2"
 before_script:
-  # start xvfb and firefox to run the tests
-  - /sbin/start-stop-daemon --start --quiet --pidfile /tmp/custom_xvfb_99.pid --make-pidfile --background --exec /usr/bin/Xvfb -- :99 -ac -screen 0 1280x1024x16
-  - sleep 3 # give xvfb some time to start
-  - export DISPLAY=:99.0
   - wget $FF_URL
   - FNAME=$(basename $FF_URL)
   - echo "$CHECKSUM" | sha256sum -c
   - tar axf $FNAME
   - export PATH=$PWD/firefox:$PATH
   - which firefox
-  - firefox --marionette &
+  - MOZ_HEADLESS=1 firefox --marionette &
 script:
   - cargo build --verbose --all
   # firefox can only have one active connection/session
@@ -29,6 +19,7 @@ script:
   - export RUST_TEST_THREADS=1
   - export RUST_LOG=marionette=debug,ff=debug,manual=debug
   - export RUST_BACKTRACE=1
+  - export MOZ_HEADLESS=1
   # Some tests in the manual require a running instance
   - export PATH=$PATH:$(pwd)/target/debug
   - ff -vvv start --port 7766
