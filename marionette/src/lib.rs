@@ -116,10 +116,11 @@ impl MarionetteConnection {
                 msgid: 0,
                 timeouts: None,
             };
+            // TODO store the whole capabilities object instead
             let mut options = NewSessionRequest::new();
             let resp = conn.new_session(options)?;
 
-            conn.timeouts = resp.timeouts;
+            conn.timeouts = resp.capabilities.timeouts;
             Ok(conn)
         } else {
             Err(MarionetteError::UnsupportedProtocolVersion)

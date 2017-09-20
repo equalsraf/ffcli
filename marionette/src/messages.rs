@@ -30,19 +30,24 @@ pub enum Capability {
 }
 
 #[derive(Serialize, Debug)]
-pub struct Capabilities {
+pub struct CapabilityRequest {
     requiredCapabilities: HashMap<String, Value>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Capabilities {
+    pub timeouts: Option<Timeouts>,
 }
 
 #[derive(Serialize, Debug)]
 pub struct NewSessionRequest {
-    capabilities: Capabilities,
+    capabilities: CapabilityRequest,
 }
 
 impl NewSessionRequest {
     pub fn new() -> Self {
         NewSessionRequest {
-            capabilities: Capabilities {
+            capabilities: CapabilityRequest {
                 requiredCapabilities: HashMap::new(),
             }
         }
@@ -59,7 +64,7 @@ impl NewSessionRequest {
 #[derive(Deserialize, Debug)]
 pub struct NewSessionResponse {
     pub sessionId: String,
-    pub timeouts: Option<Timeouts>,
+    pub capabilities: Capabilities,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
