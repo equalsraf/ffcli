@@ -21,6 +21,8 @@ fn spawn_firefox(firefox_bin: &Path, profile: &Path) -> IoResult<Child> {
         .arg("--marionette")
         .arg("--profile")
         .arg(profile)
+        .arg("--start-debugger-server")
+        .arg("1234")
         .stdout(Stdio::null()).stderr(Stdio::null())
         .env("MOZ_NO_REMOTE", "1").env("NO_EM_RESTART", "1")
         .spawn()
@@ -72,6 +74,11 @@ impl FirefoxRunner {
             prefs.insert("media.autoplay.enabled", Pref::new(false));
             // Enable private browsing
             prefs.insert("browser.privatebrowsing.autostart", Pref::new(false));
+
+            // enable remote debugger
+            prefs.insert("devtools.debugger.remote-enabled", Pref::new(true));
+            prefs.insert("devtools.chrome.enabled", Pref::new(true));
+            prefs.insert("devtools.debugger.prompt-connection", Pref::new(false));
 
             prefs.insert_slice(&FIREFOX_PREFERENCES[..]);
             prefs.write()?;
