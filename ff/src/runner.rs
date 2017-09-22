@@ -66,6 +66,7 @@ impl FirefoxRunner {
             // Disable first-run welcome page
             prefs.insert("startup.homepage_welcome_url", Pref::new("about:blank"));
             prefs.insert("startup.homepage_welcome_url.additional", Pref::new(""));
+            prefs.insert("browser.EULA.override", Pref::new(true));
 
             // Disable autoplay
             prefs.insert("media.autoplay.enabled", Pref::new(false));
