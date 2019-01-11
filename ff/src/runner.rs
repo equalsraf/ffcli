@@ -53,7 +53,7 @@ impl FirefoxRunner {
         let mut profile = Profile::new(Some(profile_tmpdir.as_ref()))?;
 
         {
-            let mut prefs = profile.user_prefs()
+            let prefs = profile.user_prefs()
                 .map_err(|err| IoError::new(ErrorKind::Other, format!("{}", err)))?;
             prefs.insert("marionette.port", Pref::new(port as i64));
             prefs.insert("marionette.defaultPrefs.port", Pref::new(port as i64));
@@ -101,7 +101,7 @@ impl FirefoxRunner {
         let mut profile = Profile::new(Some(profile_path.as_ref()))?;
 
         {
-            let mut prefs = profile.user_prefs()
+            let prefs = profile.user_prefs()
                 .map_err(|err| IoError::new(ErrorKind::Other, format!("{}", err)))?;
             prefs.insert("marionette.port", Pref::new(port as i64));
             prefs.insert("marionette.defaultPrefs.port", Pref::new(port as i64));

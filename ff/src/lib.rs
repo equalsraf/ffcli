@@ -1,7 +1,6 @@
 use std::io;
 use std::io::{Write, Read};
 use std::net::TcpListener;
-use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::thread;
@@ -14,6 +13,7 @@ extern crate log;
 extern crate mktemp;
 extern crate marionette;
 use marionette::{Result, MarionetteConnection};
+extern crate dirs;
 
 mod runner;
 use runner::FirefoxRunner;
@@ -60,7 +60,7 @@ pub fn check_tcp_port(port: Option<u16>) -> io::Result<u16> {
 }
 
 fn instance_root_path() -> io::Result<PathBuf> {
-    let mut path = env::home_dir()
+    let mut path = dirs::home_dir()
         .ok_or(io::Error::new(io::ErrorKind::Other, "Could not determine your HOME folder"))?;
     path.push(".ff");
     path.push("instances");

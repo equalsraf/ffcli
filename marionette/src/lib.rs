@@ -117,7 +117,7 @@ impl MarionetteConnection {
                 timeouts: None,
             };
             // TODO store the whole capabilities object instead
-            let mut options = NewSessionRequest::new();
+            let options = NewSessionRequest::new();
             let resp = conn.new_session(options)?;
 
             conn.timeouts = resp.capabilities.timeouts;

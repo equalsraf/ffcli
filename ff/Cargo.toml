@@ -13,6 +13,7 @@ marionette = {path = "../marionette"}
 clap = "2.0"
 url = "1.4"
 stderrlog = "0.2"
+dirs = "1.0"
 
 [target.'cfg(unix)'.dependencies]
 chan-signal = "0.2"
