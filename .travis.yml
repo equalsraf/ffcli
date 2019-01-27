@@ -4,6 +4,9 @@ rust:
 env:
   # Test with different FF versions the $CHECKSUM is the output from sha256sum
   - FF_URL="https://download-installer.cdn.mozilla.net/pub/firefox/releases/55.0.3/linux-x86_64/en-US/firefox-55.0.3.tar.bz2" CHECKSUM="f0fd11357de7250660f1a5c5b209c44de1d0f50bb1d3444dd2afad6b41e15b9d  firefox-55.0.3.tar.bz2"
+  - FF_URL="https://download-installer.cdn.mozilla.net/pub/firefox/releases/60.0/linux-x86_64/en-US/firefox-60.0.tar.bz2" CHECKSUM="185808361d70600150f3f63047fa214d86218df0ba6f3a3611f8fb23cd28b8b1  firefox-60.0.tar.bz2"
+  - FF_URL="https://download-installer.cdn.mozilla.net/pub/firefox/releases/62.0/linux-x86_64/en-US/firefox-62.0.tar.bz2" CHECKSUM="7c64a66e227d563fff726660b0f424390939814560d8b585346f6602d7bd1651  firefox-62.0.tar.bz2"
+  - FF_URL="https://download-installer.cdn.mozilla.net/pub/firefox/releases/64.0/linux-x86_64/en-US/firefox-64.0.tar.bz2" CHECKSUM="81a169d7541735059645b4021c3ab2332af016214d3726be58fcd376b601755f  firefox-64.0.tar.bz2"
 before_script:
   - wget $FF_URL
   - FNAME=$(basename $FF_URL)
