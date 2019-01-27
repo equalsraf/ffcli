@@ -71,7 +71,7 @@ pub struct NewSessionResponse {
 pub struct Empty {}
 
 /// Sets various timeout parameters (in ms)
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 pub struct Timeouts {
     /// when to interrupt a script that is being evaluated
     pub script: u64,
@@ -228,6 +228,9 @@ pub struct FindElementQuery {
     pub value: String,
     /// The method use to perform the query
     pub using: QueryMethod,
+    // In recent versions of firefox (60) this field must not
+    // be set to null, skip it instead
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub element: Option<String>,
 }
 

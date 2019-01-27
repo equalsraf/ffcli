@@ -12,36 +12,16 @@ fn connect() {
 }
 
 #[test]
-fn get_logs_drains_the_logs() {
-    let _ = env_logger::init();
-
-    let mut conn = MarionetteConnection::connect(2828).unwrap();
-    conn.log(LogMsg::new("Hi", "RUST")).unwrap();
-    let logs = conn.get_logs().unwrap();
-    assert_eq!(logs[0].msg(), "Hi");
-    assert_eq!(logs[0].level(), "RUST");
-
-    let logs = conn.get_logs().unwrap();
-    assert!(logs.is_empty());
-}
-
-#[test]
-fn logs_do_not_persist_accross_connections() {
-    let _ = env_logger::init();
-
-    {
-    let mut conn = MarionetteConnection::connect(2828).unwrap();
-    conn.log(LogMsg::new("Hi", "RUST")).unwrap();
-    }
-
-    let mut conn = MarionetteConnection::connect(2828).unwrap();
-    let logs = conn.get_logs().unwrap();
-    assert!(logs.is_empty());
-}
-
-#[test]
 fn timeouts_are_set() {
     let _ = env_logger::init();
     let mut conn = MarionetteConnection::connect(2828).unwrap();
     assert!(conn.timeouts().is_some());
+
+    let t = Timeouts {
+        script: 10001,
+        pageLoad: 10002,
+        implicit: 10003,
+    };
+    conn.set_timeouts(t).unwrap();
+    assert_eq!(conn.timeouts(), Some(&t));
 }

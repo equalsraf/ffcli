@@ -64,7 +64,7 @@ impl fmt::Display for MarionetteError {
         match *self {
             MarionetteError::Io(ref err) => err.fmt(f),
             MarionetteError::JSON(ref err) => err.fmt(f),
-            MarionetteError::Call(ref err) => write!(f, "{}", err.message),
+            MarionetteError::Call(ref err) => write!(f, "API call failed: {}, {}", err.error, err.message),
             MarionetteError::UnexpectedType => write!(f, "Found unexpected type in marionette message"),
             MarionetteError::InvalidMsgId => write!(f, "Invalid msg id in marionette message"),
             MarionetteError::InvalidResponseArray => write!(f, "Invalid response array in marionette message"),
@@ -93,16 +93,27 @@ pub type Result<T> = std::result::Result<T, MarionetteError>;
 
 pub mod messages;
 use messages::*;
-pub use messages::{LogMsg, QueryMethod, WindowHandle, Script};
+pub use messages::{LogMsg, QueryMethod, WindowHandle, Script, Timeouts};
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum Compatibility {
+    /// The old version of the protocol, pre WebDriver:
+    Marionette,
+    /// The new marionette protocol with prefix WebDriver:
+    Webdriver,
+}
 
 pub struct MarionetteConnection {
     reader: BufReader<TcpStream>,
     writer: TcpStream,
     msgid: u64,
     timeouts: Option<Timeouts>,
+    compatibility: Compatibility,
 }
 
 impl MarionetteConnection {
+    pub fn compatibility(&self) -> Compatibility { self.compatibility }
+
     pub fn connect(port: u16) -> Result<Self> {
         let stream = TcpStream::connect(("127.0.0.1", port))?;
         let mut reader = BufReader::new(stream.try_clone()?);
@@ -115,11 +126,19 @@ impl MarionetteConnection {
                 writer: stream,
                 msgid: 0,
                 timeouts: None,
+                compatibility: Compatibility::Webdriver,
             };
             // TODO store the whole capabilities object instead
             let mut options = NewSessionRequest::new();
-            let resp = conn.new_session(options)?;
+            let (resp, compat) = match conn.new_session_webdriver(&options) {
+                Ok(resp) => (resp, conn.compatibility),
+                Err(_) => {
+                    // Retry with the new old protocol
+                    (conn.new_session(&options)?, Compatibility::Marionette)
+                }
+            };
 
+            conn.compatibility = compat;
             conn.timeouts = resp.capabilities.timeouts;
             Ok(conn)
         } else {
@@ -190,72 +209,95 @@ impl MarionetteConnection {
     }
 
     // AFAIK the semantics for newSession is that it should be called for each connection
-    fn new_session(&mut self, options: NewSessionRequest) -> Result<NewSessionResponse> {
+    fn new_session(&mut self, options: &NewSessionRequest) -> Result<NewSessionResponse> {
         self.call("newSession", options)
+    }
+
+    fn new_session_webdriver(&mut self, options: &NewSessionRequest) -> Result<NewSessionResponse> {
+        self.call("WebDriver:NewSession", options)
     }
 
     /// Refresh the current page
     pub fn refresh(&mut self) -> Result<()> {
-        let _: Empty = self.call("refresh", Empty {})?;
+        let _: Empty = match self.compatibility {
+            Compatibility::Marionette => self.call("refresh", Empty {})?,
+            Compatibility::Webdriver => self.call("WebDriver:Refresh", Empty {})?,
+        };
         Ok(())
     }
 
     /// Go back to the previous page
     pub fn go_back(&mut self) -> Result<()> {
-        let _: Empty = self.call("goBack", Empty {})?;
+        let _: Empty = match self.compatibility {
+            Compatibility::Marionette => self.call("goBack", Empty {})?,
+            Compatibility::Webdriver => self.call("WebDriver:Back", Empty {})?,
+        };
         Ok(())
     }
 
     /// Go forward to the next page in history
     pub fn go_forward(&mut self) -> Result<()> {
-        let _: Empty = self.call("goForward", Empty {})?;
+        let _: Empty = match self.compatibility {
+            Compatibility::Marionette => self.call("goForward", Empty {})?,
+            Compatibility::Webdriver => self.call("WebDriver:Forward", Empty {})?,
+        };
         Ok(())
     }
 
     /// Get the window title
     pub fn get_title(&mut self) -> Result<String> {
-        let resp: ResponseValue<_> = self.call("getTitle", Empty {})?;
+        let resp: ResponseValue<_> = match self.compatibility {
+            Compatibility::Marionette => self.call("getTitle", Empty {})?,
+            Compatibility::Webdriver => self.call("WebDriver:GetTitle", Empty {})?,
+        };
         Ok(resp.value)
     }
 
     /// Navigate to an URL
     pub fn get(&mut self, url: &str) -> Result<()> {
         let url_arg = to_value(GetCommand::from(url))?;
-        let _: Empty = self.call("get", url_arg)?;
+        let _: Empty = match self.compatibility {
+            Compatibility::Marionette => self.call("get", url_arg)?,
+            Compatibility::Webdriver => self.call("WebDriver:Navigate", url_arg)?,
+        };
         Ok(())
+    }
+    pub fn navigate(&mut self, url: &str) -> Result<()> {
+        self.get(url)
     }
 
     /// Get the page url
     pub fn get_url(&mut self) -> Result<String> {
-        let resp: ResponseValue<_> = self.call("getCurrentUrl", Empty {})?;
+        let resp: ResponseValue<_> = match self.compatibility {
+            Compatibility::Marionette => self.call("getCurrentUrl", Empty {})?,
+            Compatibility::Webdriver => self.call("WebDriver:GetCurrentURL", Empty {})?,
+        };
         Ok(resp.value)
-    }
-
-    /// Store a log in the marionette server
-    pub fn log(&mut self, msg: LogMsg) -> Result<()> {
-        let _: Empty = self.call("log", msg)?;
-        Ok(())
-    }
-
-    /// Get all log entries from the server
-    pub fn get_logs(&mut self) -> Result<Vec<LogEntry>> {
-        self.call("getLogs", Empty {})
     }
 
     /// Returns the handle for the current window
     pub fn get_window_handle(&mut self) -> Result<WindowHandle> {
-        let resp: ResponseValue<_> = self.call("getWindowHandle", Empty {})?;
+        let resp: ResponseValue<_> = match self.compatibility {
+            Compatibility::Marionette => self.call("getWindowHandle", Empty {})?,
+            Compatibility::Webdriver => self.call("WebDriver:GetWindowHandle", Empty {})?,
+        };
         Ok(resp.value)
     }
 
     /// Returns a list of windows in the current context
     pub fn get_window_handles(&mut self) -> Result<Vec<WindowHandle>> {
-        self.call("getWindowHandles", Empty {})
+        match self.compatibility {
+            Compatibility::Marionette => self.call("getWindowHandles", Empty {}),
+            Compatibility::Webdriver => self.call("WebDriver:GetWindowHandles", Empty {}),
+        }
     }
 
     /// Switch to the specified window
     pub fn switch_to_window(&mut self, win: &WindowHandle) -> Result<()> {
-        let _: Empty = self.call("switchToWindow", win)?;
+        let _: Empty = match self.compatibility {
+            Compatibility::Marionette => self.call("switchToWindow", win)?,
+            Compatibility::Webdriver => self.call("WebDriver:SwitchToWindow", win)?,
+        };
         Ok(())
     }
 
@@ -274,13 +316,19 @@ impl MarionetteConnection {
     ///
     /// The return value is any JSON type returned by the script
     pub fn execute_script(&mut self, script: &Script) -> Result<JsonValue> {
-        let resp: ResponseValue<_> = self.call("executeScript", script)?;
+        let resp: ResponseValue<_> = match self.compatibility {
+            Compatibility::Marionette => self.call("executeScript", script)?,
+            Compatibility::Webdriver => self.call("WebDriver:ExecuteScript", script)?,
+        };
         Ok(resp.value)
     }
 
     /// Sets global timeouts for various operations
     pub fn set_timeouts(&mut self, t: Timeouts) -> Result<()> {
-        let _: Empty = self.call("timeouts", &t)?;
+        let _: Empty = match self.compatibility {
+            Compatibility::Marionette => self.call("timeouts", t)?,
+            Compatibility::Webdriver => self.call("WebDriver:SetTimeouts", t)?,
+        };
         self.timeouts = Some(t);
         Ok(())
     }
@@ -294,13 +342,19 @@ impl MarionetteConnection {
     /// Scripts executed this way can terminate with a result using the function
     /// `marionetteScriptFinished(result)`.
     pub fn execute_async_script(&mut self, script: &Script) -> Result<JsonValue> {
-        let resp: ResponseValue<_> = self.call("executeAsyncScript", script)?;
+        let resp: ResponseValue<_> = match self.compatibility {
+            Compatibility::Marionette => self.call("executeAsyncScript", script)?,
+            Compatibility::Webdriver => self.call("WebDriver:ExecuteAsyncScript", script)?,
+        };
         Ok(resp.value)
     }
 
     /// Returns the page source
     pub fn get_page_source(&mut self) -> Result<String> {
-        let resp: ResponseValue<_> = self.call("getPageSource", Empty {})?;
+        let resp: ResponseValue<_> = match self.compatibility {
+            Compatibility::Marionette => self.call("getPageSource", Empty {})?,
+            Compatibility::Webdriver => self.call("WebDriver:GetPageSource", Empty {})?,
+        };
         Ok(resp.value)
     }
 
@@ -311,7 +365,10 @@ impl MarionetteConnection {
             using: method,
             element: inside.map(|elem| elem.reference.to_owned()),
         };
-        self.call("findElements", query)
+        match self.compatibility {
+            Compatibility::Marionette => self.call("findElements", query),
+            Compatibility::Webdriver => self.call("WebDriver:FindElements", query),
+        }
     }
 
     pub fn get_element_attribute(&mut self, elem: &ElementRef, attrname: &str) -> Result<String> {
@@ -319,7 +376,10 @@ impl MarionetteConnection {
             id: elem.reference.to_owned(),
             name: Some(attrname.to_owned()),
         };
-        let resp: ResponseValue<_> = self.call("getElementAttribute", arg)?;
+        let resp: ResponseValue<_> = match self.compatibility {
+            Compatibility::Marionette => self.call("getElementAttribute", arg)?,
+            Compatibility::Webdriver => self.call("WebDriver:GetElementAttribute", arg)?,
+        };
         Ok(resp.value)
     }
 
@@ -328,7 +388,10 @@ impl MarionetteConnection {
             id: elem.reference.to_owned(),
             name: Some(propname.to_owned()),
         };
-        let resp: ResponseValue<_> = self.call("getElementProperty", arg)?;
+        let resp: ResponseValue<_> = match self.compatibility {
+            Compatibility::Marionette => self.call("getElementProperty", arg)?,
+            Compatibility::Webdriver => self.call("WebDriver:GetElementProperty", arg)?,
+        };
         Ok(resp.value)
     }
 
@@ -337,30 +400,45 @@ impl MarionetteConnection {
             id: elem.reference.to_owned(),
             name: None,
         };
-        let resp: ResponseValue<_> = self.call("getElementText", arg)?;
+        let resp: ResponseValue<_> = match self.compatibility {
+            Compatibility::Marionette => self.call("getElementText", arg)?,
+            Compatibility::Webdriver => self.call("WebDriver:GetElementText", arg)?,
+        };
         Ok(resp.value)
     }
 
     pub fn get_active_frame(&mut self) -> Result<Option<ElementRef>> {
-        let resp: ResponseValue<_> = self.call("getActiveFrame", Empty {})?;
+        let resp: ResponseValue<_> = match self.compatibility {
+            Compatibility::Marionette => self.call("getActiveFrame", Empty {})?,
+            Compatibility::Webdriver => self.call("WebDriver:GetActiveFrame", Empty {})?,
+        };
         Ok(resp.value)
     }
 
     /// Switch to the given frame. If None switches to the top frame
     pub fn switch_to_frame(&mut self, elem: Option<ElementRef>) -> Result<()> {
         let arg = FrameSwitch::from_element(false, elem);
-        let _: Empty = self.call("switchToFrame", arg)?;
+        let _: Empty = match self.compatibility {
+            Compatibility::Marionette => self.call("switchToFrame", arg)?,
+            Compatibility::Webdriver => self.call("WebDriver:SwitchToFrame", arg)?,
+        };
         Ok(())
     }
 
     pub fn switch_to_parent_frame(&mut self) -> Result<()> {
-        let _: Empty = self.call("switchToParentFrame", Empty {})?;
+        let _: Empty = match self.compatibility {
+            Compatibility::Marionette => self.call("switchToParentFrame", Empty {})?,
+            Compatibility::Webdriver => self.call("WebDriver:SwitchToParentFrame", Empty {})?,
+        };
         Ok(())
     }
 
     /// Close the application
     pub fn quit(mut self) -> Result<()> {
-        let _: Empty = self.call("quitApplication", Empty {})?;
+        let _: Empty = match self.compatibility {
+            Compatibility::Marionette => self.call("quitApplication", Empty {})?,
+            Compatibility::Webdriver => self.call("Marionette:Quit", Empty {})?,
+        };
         Ok(())
     }
 
@@ -374,7 +452,11 @@ impl MarionetteConnection {
             path.into()
         };
 
-        let _: Empty = self.call("addon:install", AddonInstall { path: &abspath })?;
+        let arg = AddonInstall { path: &abspath };
+        let _: Empty = match self.compatibility {
+            Compatibility::Marionette => self.call("addon:install", arg)?,
+            Compatibility::Webdriver => self.call("Addon:Install", arg)?,
+        };
         Ok(())
     }
 

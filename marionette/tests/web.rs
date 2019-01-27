@@ -30,8 +30,18 @@ fn async_script() {
     let _ = env_logger::init();
     let mut conn = MarionetteConnection::connect(2828).unwrap();
 
-    // async scripts terminate using marionetteScriptFinished()
-    let script = Script::new("marionetteScriptFinished(42); return 1;");
+    // async scripts terminate using marionetteScriptFinished() in older versions,
+    // in newer ones grab a function from the arguments
+    let mut script = if conn.compatibility() == Compatibility::Marionette {
+        Script::new("marionetteScriptFinished(42); return 1;")
+    } else {
+        Script::new(r#"
+                let [resolve] = arguments;
+                resolve(42);
+                return 1;
+                "#)
+    };
+
     let res = conn.execute_async_script(&script).unwrap();
     assert_eq!(res, JsonValue::from(42));
 }
@@ -58,11 +68,21 @@ fn script_global_timeout() {
         implicit: 10000,
     };
     conn.set_timeouts(t).unwrap();
-    let script = Script::new(r#"
-            setTimeout(function() {
-                marionetteScriptFinished(42);
-            }, 3000);
-            "#);
+
+    let mut script = if conn.compatibility() == Compatibility::Marionette {
+        Script::new(r#"
+                setTimeout(function() {
+                    marionetteScriptFinished(42);
+                }, 3000);
+                "#)
+    } else {
+        Script::new(r#"
+                let [resolve] = arguments;
+                setTimeout(function() {
+                    resolve(42);
+                }, 3000);
+                "#)
+    };
     assert!(conn.execute_async_script(&script).is_err());
 
     let t = Timeouts {
@@ -80,11 +100,20 @@ fn script_timeout() {
     let _ = env_logger::init();
     let mut conn = MarionetteConnection::connect(2828).unwrap();
 
-    let mut script = Script::new(r#"
-            setTimeout(function() {
-                marionetteScriptFinished(42);
-            }, 3000);
-            "#);
+    let mut script = if conn.compatibility() == Compatibility::Marionette {
+        Script::new(r#"
+                setTimeout(function() {
+                    marionetteScriptFinished(42);
+                }, 3000);
+                "#)
+    } else {
+        Script::new(r#"
+                let [resolve] = arguments;
+                setTimeout(function() {
+                    resolve(42);
+                }, 3000);
+                "#)
+    };
     script.timeout(10);
     assert!(conn.execute_async_script(&script).is_err());
 
