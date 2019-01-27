@@ -37,7 +37,7 @@ fn run_shell_command(cmd: &str) {
         .expect("failed to wait on child command");
 
     if !ecode.success() {
-        panic!("Command failed");
+        panic!("Command failed: {}", cmd);
     }
 }
 
@@ -57,7 +57,7 @@ fn run_shell_command(cmd: &str) {
         .expect("failed to wait on child command");
 
     if !ecode.success() {
-        panic!("Command failed");
+        panic!("Command failed: {}", cmd);
     }
 }
 

@@ -38,6 +38,7 @@ impl<T, E: std::error::Error> ExitOnError<T> for std::result::Result<T, E> {
         match self {
             Ok(res) => res,
             Err(err) => {
+                error!("{}", err);
                 Self::exit(code, Some(err.description()));
             }
         }
@@ -47,6 +48,7 @@ impl<T, E: std::error::Error> ExitOnError<T> for std::result::Result<T, E> {
         match self {
             Ok(res) => res,
             Err(err) => {
+                error!("{}", err);
                 Self::exit(code, Some(&format!("{}: {}", msg, err.description())));
             }
         }
@@ -370,9 +372,13 @@ fn main() {
                     .about("Switch browser window"))
         .get_matches();
 
-    stderrlog::new()
-            .module(module_path!())
-            .verbosity(matches.occurrences_of("verbose") as usize)
+    let verbose = matches.occurrences_of("verbose") as usize;
+    let mut log = stderrlog::new();
+    if verbose >= 4 {
+        log.module("marionette");
+    }
+    log.module(module_path!())
+            .verbosity(verbose)
             .init()
             .expect("Unable to initialize stderr output");
 
