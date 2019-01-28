@@ -371,7 +371,7 @@ impl MarionetteConnection {
         }
     }
 
-    pub fn get_element_attribute(&mut self, elem: &ElementRef, attrname: &str) -> Result<String> {
+    pub fn get_element_attribute(&mut self, elem: &ElementRef, attrname: &str) -> Result<Option<String>> {
         let arg = ElementOp {
             id: elem.reference.to_owned(),
             name: Some(attrname.to_owned()),
@@ -518,7 +518,7 @@ impl<'a> Element<'a> {
     }
 
     /// Get element attribute
-    pub fn attr(&mut self, name: &str) -> Result<String> {
+    pub fn attr(&mut self, name: &str) -> Result<Option<String>> {
         self.connection.get_element_attribute(&self.id, name)
     }
 

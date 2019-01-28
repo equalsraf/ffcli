@@ -166,7 +166,7 @@ fn elements() {
     assert!(!elements.is_empty());
 
     let src = conn.get_element_attribute(&elements[0], "src").unwrap();
-    println!("{}", src);
+    println!("{}", src.unwrap_or(String::new()));
 
     let outer = conn.get_element_property(&elements[0], "outerHTML").unwrap();
     println!("{}", outer);

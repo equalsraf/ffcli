@@ -415,7 +415,7 @@ it can be fixed - {}\n", ISSUES_URL);
             conn.switch_to_frame(None).unwrap_or_exit(-1);
             foreach_frame(&mut conn, args, &|conn, args| {
                 foreach_element(conn, args, &|elem| {
-                    let text = elem.attr(attrname)?;
+                    let text = elem.attr(attrname)?.unwrap_or(String::new());
                     if !text.is_empty() {
                         println!("{}", text);
                     }
