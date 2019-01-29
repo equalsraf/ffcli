@@ -108,7 +108,7 @@ The id can be used with the switch command to switch windows.
 
 The firefox preferences can be inspected with __prefget__
 
-	$ ff prefget browser.uitour.enabled
+	$ ff prefget browser.safebrowsing.malware.enabled
 	false
 
 and modified with __prefset__. The last argument to __prefset__ is a json value, not a string.
