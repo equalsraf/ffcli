@@ -302,13 +302,19 @@ impl MarionetteConnection {
     }
 
     pub fn get_context(&mut self) -> Result<Context> {
-        let resp = self.call("getContext", Empty {})?;
+        let resp = match self.compatibility {
+            Compatibility::Marionette => self.call("getContext", Empty {})?,
+            Compatibility::Webdriver => self.call("Marionette:GetContext", Empty {})?,
+        };
         Context::from_value(resp)
     }
 
     pub fn set_context(&mut self, ctx: Context) -> Result<()> {
         let arg: ContextValue = ctx.into();
-        let _: Empty = self.call("setContext", arg)?;
+        let _: Empty = match self.compatibility {
+            Compatibility::Marionette => self.call("setContext", arg)?,
+            Compatibility::Webdriver => self.call("Marionette:SetContext", arg)?,
+        };
         Ok(())
     }
 
