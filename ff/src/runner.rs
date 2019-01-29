@@ -72,6 +72,9 @@ impl FirefoxRunner {
             // Enable private browsing
             prefs.insert("browser.privatebrowsing.autostart", Pref::new(false));
 
+            // Disable privacy notice
+            prefs.insert("datareporting.policy.firstRunURL", Pref::new(""));
+
             prefs.insert_slice(&FIREFOX_PREFERENCES[..]);
             prefs.write()?;
         }
