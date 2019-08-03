@@ -13,7 +13,6 @@ use mktemp::Temp;
 use mozrunner::firefox_default_path;
 use mozprofile::profile::Profile;
 use mozprofile::preferences::Pref;
-use mozprofile::prefdata::FIREFOX_PREFERENCES;
 
 #[cfg(unix)]
 fn spawn_firefox(firefox_bin: &Path, profile: &Path) -> IoResult<Child> {
@@ -75,7 +74,6 @@ impl FirefoxRunner {
             // Disable privacy notice
             prefs.insert("datareporting.policy.firstRunURL", Pref::new(""));
 
-            prefs.insert_slice(&FIREFOX_PREFERENCES[..]);
             prefs.write()?;
         }
 

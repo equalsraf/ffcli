@@ -4,8 +4,8 @@ version = "0.2.2"
 authors = ["raf"]
 
 [dependencies]
-mozrunner = "0.3"
-mozprofile = "0.2"
+mozrunner = "0.9"
+mozprofile = "0.5"
 serde_json = "*"
 log = "0.3"
 mktemp = "0.3"
@@ -21,6 +21,3 @@ chan-signal = "0.2"
 env_logger = "0.4"
 pulldown-cmark = { version = "0.0.14", default-features = false }
 
-[[bin]]
-name = "ff"
-doc = false
