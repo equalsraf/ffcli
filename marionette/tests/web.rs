@@ -3,6 +3,8 @@ use marionette::*;
 use marionette::messages::Script;
 use marionette::messages::Timeouts;
 extern crate env_logger;
+#[macro_use]
+extern crate log;
 
 #[test]
 fn script_system() {
@@ -114,19 +116,26 @@ fn script_timeout() {
                 }, 3000);
                 "#)
     };
-    script.timeout(10);
-    assert!(conn.execute_async_script(&script).is_err());
-
-    script.timeout(30001);
-    let res = conn.execute_async_script(&script).unwrap();
-    assert_eq!(res, JsonValue::from(42));
 
     let t = Timeouts {
-        script: 1000,
+        script: 10,
         pageLoad: 10000,
         implicit: 10000,
     };
     conn.set_timeouts(t).unwrap();
+
+    let out = conn.execute_async_script(&script);
+    debug!("Executing ({:?}) script returns: {:?}", conn.compatibility(), out);
+    assert!(out.is_err());
+
+    let t = Timeouts {
+        script: 30001,
+        pageLoad: 10000,
+        implicit: 10000,
+    };
+    conn.set_timeouts(t).unwrap();
+
+    let res = conn.execute_async_script(&script).unwrap();
     assert_eq!(res, JsonValue::from(42));
 }
 

@@ -95,11 +95,12 @@ pub mod messages;
 use messages::*;
 pub use messages::{LogMsg, QueryMethod, WindowHandle, Script, Timeouts};
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Compatibility {
     /// The old version of the protocol, pre WebDriver:
     Marionette,
-    /// The new marionette protocol with prefix WebDriver:
+    /// The new marionette protocol - all commands are
+    /// prefixed with  WebDriver: or Marionette:
     Webdriver,
 }
 

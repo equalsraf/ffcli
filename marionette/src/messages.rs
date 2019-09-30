@@ -190,6 +190,15 @@ impl Script {
     /// Set execution timeout for script (ms)
     ///
     /// This value overrides the global scriptTimeout.
+    ///
+    /// This option was removed from firefox in Jan/2019, see
+    ///
+    ///    9ed472d43600ca6ba1ced8a563dbaa4abdef5eaa
+    ///
+    /// https://bugzilla.mozilla.org/show_bug.cgi?id=1510929
+    /// https://phabricator.services.mozilla.com/D15584
+    ///
+    #[deprecated = "Unsupported since Jan/2009 see bug 1510929"]
     pub fn timeout(&mut self, timeout_ms: u64) {
         self.scriptTimeout = Some(timeout_ms)
     }
