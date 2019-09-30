@@ -7,6 +7,7 @@ env:
   - FF_URL="https://download-installer.cdn.mozilla.net/pub/firefox/releases/60.0/linux-x86_64/en-US/firefox-60.0.tar.bz2" CHECKSUM="185808361d70600150f3f63047fa214d86218df0ba6f3a3611f8fb23cd28b8b1  firefox-60.0.tar.bz2"
   - FF_URL="https://download-installer.cdn.mozilla.net/pub/firefox/releases/62.0/linux-x86_64/en-US/firefox-62.0.tar.bz2" CHECKSUM="7c64a66e227d563fff726660b0f424390939814560d8b585346f6602d7bd1651  firefox-62.0.tar.bz2"
   - FF_URL="https://download-installer.cdn.mozilla.net/pub/firefox/releases/64.0/linux-x86_64/en-US/firefox-64.0.tar.bz2" CHECKSUM="81a169d7541735059645b4021c3ab2332af016214d3726be58fcd376b601755f  firefox-64.0.tar.bz2"
+  - FF_URL="https://download-installer.cdn.mozilla.net/pub/firefox/releases/68.0/linux-x86_64/en-US/firefox-68.0.tar.bz2" CHECKSUM="bf89f1342cf29a95fdd979b3344777a5c73c6f96d5ea29261c35c2084901aac3  firefox-68.0.tar.bz2"
 before_script:
   - wget $FF_URL
   - FNAME=$(basename $FF_URL)
