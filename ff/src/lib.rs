@@ -24,9 +24,9 @@ pub struct Browser {
 }
 
 impl Browser {
-    pub fn start<P: AsRef<Path>>(port: u16, profile_path: Option<P>, firefox_path: Option<P>, session_name: Option<&str>) -> io::Result<Self> {
+    pub fn start<P: AsRef<Path>>(port: u16, profile_path: Option<P>, firefox_path: Option<P>, session_name: Option<&str>, user_js: Vec<P>) -> io::Result<Self> {
         let runner = match profile_path {
-            None => FirefoxRunner::tmp(port, firefox_path)?,
+            None => FirefoxRunner::tmp(port, firefox_path, user_js)?,
             Some(path) => FirefoxRunner::from_path(path, port, firefox_path)?,
         };
         let session_file = create_instance_file(session_name, port)?;

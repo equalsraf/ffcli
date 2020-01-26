@@ -90,7 +90,18 @@ fn cmd_start(args: &ArgMatches) -> Result<()> {
     if args.is_present("no-fork") {
         setup_signals();
 
-        let mut browser = ff::Browser::start(portnum, args.value_of("PROFILE"), args.value_of("FIREFOX-BIN"), args.value_of("SESSION"))?;
+        let userjs = if let Some(v) = args.values_of("USERJS") {
+            v.collect()
+        } else {
+            Vec::new()
+        };
+
+        let mut browser = ff::Browser::start(portnum,
+                                             args.value_of("PROFILE"),
+                                             args.value_of("FIREFOX-BIN"),
+                                             args.value_of("SESSION"),
+                                             userjs,
+                                             )?;
         debug!("New ff session {}", browser.session_file().to_string_lossy());
 
         let status = browser.runner.process.wait()?;
@@ -256,6 +267,11 @@ fn main() {
                          .help("Give a name to this session")
                          .long("session")
                          .short("S"))
+                    .arg(Arg::with_name("USERJS")
+                         .takes_value(true)
+                         .help("Import custom preferences use the user.js format")
+                         .multiple(true)
+                         .long("user-js"))
                     .arg(Arg::with_name("FIREFOX-BIN")
                          .takes_value(true)
                          .help("Firefox binary path")

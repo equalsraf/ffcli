@@ -11,7 +11,7 @@ extern crate marionette;
 use mktemp::Temp;
 
 use mozrunner::firefox_default_path;
-use mozprofile::profile::Profile;
+use mozprofile::profile::{Profile, PrefFile};
 use mozprofile::preferences::Pref;
 
 #[cfg(unix)]
@@ -36,6 +36,44 @@ fn spawn_firefox(firefox_bin: &Path, profile: &Path) -> IoResult<Child> {
         .spawn()
 }
 
+/// Create a new profile with some default user settings
+///
+/// importpath: is a path to an existing user.js file with settings to be imported
+pub fn create_profile<P1: AsRef<Path>, P2: AsRef<Path>>(profilepath: P1, userjs: Vec<P2>) -> IoResult<Profile> {
+    let mut profile = Profile::new_from_path(profilepath.as_ref())?;
+    let prefs = profile.user_prefs()
+        .map_err(|err| IoError::new(ErrorKind::Other, format!("{}", err)))?;
+    // Startup with a blank page
+    prefs.insert("browser.startup.page", Pref::new(0 as i64));
+    prefs.insert("browser.startup.homepage_override.mstone", Pref::new("ignore"));
+
+    // Disable the UI tour
+    prefs.insert("browser.uitour.enabled", Pref::new(false));
+    // Disable first-run welcome page
+    prefs.insert("startup.homepage_welcome_url", Pref::new("about:blank"));
+    prefs.insert("startup.homepage_welcome_url.additional", Pref::new(""));
+
+    // Disable autoplay
+    prefs.insert("media.autoplay.enabled", Pref::new(false));
+    // Enable private browsing
+    prefs.insert("browser.privatebrowsing.autostart", Pref::new(false));
+
+    // Disable privacy notice
+    prefs.insert("datareporting.policy.firstRunURL", Pref::new(""));
+
+    // Import preferences from an existing user.js
+    for p in userjs {
+        let src = PrefFile::new(PathBuf::from(p.as_ref()))
+            .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "Invalid user.js"))?;
+        for (name, value) in src.iter() {
+            prefs.insert(name, value.clone());
+        }
+    }
+
+    prefs.write()?;
+    Ok(profile)
+}
+
 pub struct FirefoxRunner {
     pub process: process::Child,
     pub profile: Profile,
@@ -47,33 +85,15 @@ pub struct FirefoxRunner {
 impl FirefoxRunner {
     /// Run a new browser instance, listening on the given port.
     /// Creates a temporary profile for this instance.
-    pub fn tmp<P: AsRef<Path>>(port: u16, firefox_path: Option<P>) -> IoResult<FirefoxRunner> {
+    pub fn tmp<P1: AsRef<Path>, P2: AsRef<Path>>(port: u16, firefox_path: Option<P1>, user_js: Vec<P2>) -> IoResult<FirefoxRunner> {
         let profile_tmpdir = Temp::new_dir()?;
-        let mut profile = Profile::new(Some(profile_tmpdir.as_ref()))?;
+        let mut profile = create_profile(&profile_tmpdir, user_js)?;
 
         {
-            let mut prefs = profile.user_prefs()
+            let prefs = profile.user_prefs()
                 .map_err(|err| IoError::new(ErrorKind::Other, format!("{}", err)))?;
             prefs.insert("marionette.port", Pref::new(port as i64));
             prefs.insert("marionette.defaultPrefs.port", Pref::new(port as i64));
-            // Startup with a blank page
-            prefs.insert("browser.startup.page", Pref::new(0 as i64));
-            prefs.insert("browser.startup.homepage_override.mstone", Pref::new("ignore"));
-
-            // Disable the UI tour
-            prefs.insert("browser.uitour.enabled", Pref::new(false));
-            // Disable first-run welcome page
-            prefs.insert("startup.homepage_welcome_url", Pref::new("about:blank"));
-            prefs.insert("startup.homepage_welcome_url.additional", Pref::new(""));
-
-            // Disable autoplay
-            prefs.insert("media.autoplay.enabled", Pref::new(false));
-            // Enable private browsing
-            prefs.insert("browser.privatebrowsing.autostart", Pref::new(false));
-
-            // Disable privacy notice
-            prefs.insert("datareporting.policy.firstRunURL", Pref::new(""));
-
             prefs.write()?;
         }
 
@@ -99,10 +119,10 @@ impl FirefoxRunner {
     pub fn from_path<P: AsRef<Path>>(profile_path: P, port: u16, firefox_path: Option<P>) -> IoResult<FirefoxRunner> {
         fs::create_dir_all(&profile_path)?;
 
-        let mut profile = Profile::new(Some(profile_path.as_ref()))?;
+        let mut profile = Profile::new_from_path(profile_path.as_ref())?;
 
         {
-            let mut prefs = profile.user_prefs()
+            let prefs = profile.user_prefs()
                 .map_err(|err| IoError::new(ErrorKind::Other, format!("{}", err)))?;
             prefs.insert("marionette.port", Pref::new(port as i64));
             prefs.insert("marionette.defaultPrefs.port", Pref::new(port as i64));
