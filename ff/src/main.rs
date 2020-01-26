@@ -502,7 +502,7 @@ it can be fixed - {}\n", ISSUES_URL);
                     .expect("Invalid WINDOW index");
                 let mut handles = conn.get_window_handles()
                     .unwrap_or_exitmsg(-1, "Unable to get window list");
-                let handle = handles.drain((..))
+                let handle = handles.drain(..)
                     .nth(idx)
                     .unwrap_or_exitmsg(-1, "Index is invalid");
                 handle
