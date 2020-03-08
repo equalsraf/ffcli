@@ -4,7 +4,7 @@ version = "0.2.2"
 authors = ["raf"]
 
 [dependencies]
-mozrunner = "0.3"
+mozrunner = "0.10"
 mozprofile = "0.6"
 serde_json = "*"
 log = "0.3"
