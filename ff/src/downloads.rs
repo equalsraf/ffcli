@@ -12,7 +12,7 @@ pub fn start(conn: &mut MarionetteConnection, url: &str, path: &Path) -> Result<
     s.sandbox("system");
 
     if path.is_relative() {
-        let mut absolute_path = try!(env::current_dir());
+        let mut absolute_path = env::current_dir()?;
         absolute_path.push(path);
         s.arguments(&(url, absolute_path))?;
     } else {

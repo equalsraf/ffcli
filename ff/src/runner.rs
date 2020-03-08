@@ -13,7 +13,6 @@ use mktemp::Temp;
 use mozrunner::firefox_default_path;
 use mozprofile::profile::Profile;
 use mozprofile::preferences::Pref;
-use mozprofile::prefdata::FIREFOX_PREFERENCES;
 
 #[cfg(unix)]
 fn spawn_firefox(firefox_bin: &Path, profile: &Path) -> IoResult<Child> {
@@ -50,10 +49,10 @@ impl FirefoxRunner {
     /// Creates a temporary profile for this instance.
     pub fn tmp<P: AsRef<Path>>(port: u16, firefox_path: Option<P>) -> IoResult<FirefoxRunner> {
         let profile_tmpdir = Temp::new_dir()?;
-        let mut profile = Profile::new(Some(profile_tmpdir.as_ref()))?;
+        let mut profile = Profile::new_from_path(profile_tmpdir.as_ref())?;
 
         {
-            let mut prefs = profile.user_prefs()
+            let prefs = profile.user_prefs()
                 .map_err(|err| IoError::new(ErrorKind::Other, format!("{}", err)))?;
             prefs.insert("marionette.port", Pref::new(port as i64));
             prefs.insert("marionette.defaultPrefs.port", Pref::new(port as i64));
@@ -72,7 +71,6 @@ impl FirefoxRunner {
             // Enable private browsing
             prefs.insert("browser.privatebrowsing.autostart", Pref::new(false));
 
-            prefs.insert_slice(&FIREFOX_PREFERENCES[..]);
             prefs.write()?;
         }
 
@@ -98,10 +96,10 @@ impl FirefoxRunner {
     pub fn from_path<P: AsRef<Path>>(profile_path: P, port: u16, firefox_path: Option<P>) -> IoResult<FirefoxRunner> {
         fs::create_dir_all(&profile_path)?;
 
-        let mut profile = Profile::new(Some(profile_path.as_ref()))?;
+        let mut profile = Profile::new_from_path(profile_path.as_ref())?;
 
         {
-            let mut prefs = profile.user_prefs()
+            let prefs = profile.user_prefs()
                 .map_err(|err| IoError::new(ErrorKind::Other, format!("{}", err)))?;
             prefs.insert("marionette.port", Pref::new(port as i64));
             prefs.insert("marionette.defaultPrefs.port", Pref::new(port as i64));
