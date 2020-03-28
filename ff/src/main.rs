@@ -127,7 +127,13 @@ fn cmd_install(args: &ArgMatches) -> Result<()> {
 
 fn cmd_instances() -> Result<()> {
     for instance in ff::instances()? {
-        println!("{}", instance);
+        if let Ok(mut c) = MarionetteConnection::connect(instance.port) {
+            if let Ok(title) = c.get_title() {
+                println!("FF_PORT={}:{} \"{}\"", instance.port, instance.name, title);
+            } else {
+                println!("{}:{} DOWN", instance.port, instance.name);
+            }
+        }
     }
     Ok(())
 }
