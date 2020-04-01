@@ -47,8 +47,20 @@ pub struct FirefoxRunner {
 impl FirefoxRunner {
     /// Run a new browser instance, listening on the given port.
     /// Creates a temporary profile for this instance.
-    pub fn tmp<P: AsRef<Path>>(port: u16, firefox_path: Option<P>) -> IoResult<FirefoxRunner> {
+    ///
+    /// firefox_path: is an optional path to the firefox executable
+    /// user_prefs: is an optional path to a user.js file to be copied into
+    ///             the new profile
+    pub fn tmp<P: AsRef<Path>>(port: u16,
+                               firefox_path: Option<P>,
+                               user_prefs: Option<P>) -> IoResult<FirefoxRunner> {
+
         let profile_tmpdir = Temp::new_dir()?;
+
+        if let Some(src) = user_prefs {
+            fs::copy(src, profile_tmpdir.as_ref().join("user.js"))?;
+        }
+
         let mut profile = Profile::new_from_path(profile_tmpdir.as_ref())?;
 
         {

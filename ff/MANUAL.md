@@ -26,11 +26,11 @@ Note that firefox will refuse to run two instances for the same profile,
 see see http://kb.mozillazine.org/Profile_in_use for more details.
 
 To list available browsers managed by ff, use the __instances__ command. The
-first part of the output is its listening port.
+the output includes the listening port and optionaly a name and title.
 
 	$ ff instances
-	36089/
-	2929/
+	FF_PORT=36089: ""
+	FF_PORT=2929: ""
 
 You can open an URL with the __go__ subcommand in the browser instance 2929
 
@@ -113,3 +113,9 @@ The firefox preferences can be inspected with __prefget__
 
 and modified with __prefset__. The last argument to __prefset__ is a json value, not a string.
 This means passing strings requires quoting, and in some shells double quoting.
+
+It is easier to set preferences using firefox [user.js file](https://developer.mozilla.org/en-US/docs/Mozilla/Preferences/A_brief_guide_to_Mozilla_preferences).
+You can start pass a custom file to be used using --user-js
+
+	$ ff start --port 3333 --user-js tests/data/test-user.js
+
