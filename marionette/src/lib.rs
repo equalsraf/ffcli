@@ -130,7 +130,7 @@ impl MarionetteConnection {
                 compatibility: Compatibility::Webdriver,
             };
             // TODO store the whole capabilities object instead
-            let mut options = NewSessionRequest::new();
+            let options = NewSessionRequest::new();
             let (resp, compat) = match conn.new_session_webdriver(&options) {
                 Ok(resp) => (resp, conn.compatibility),
                 Err(_) => {
@@ -452,7 +452,7 @@ impl MarionetteConnection {
     /// Install XPI from the given path
     pub fn addon_install(mut self, path: &Path) -> Result<()> {
         let abspath = if path.is_relative() {
-            let mut absolute_path = try!(env::current_dir());
+            let mut absolute_path = env::current_dir()?;
             absolute_path.push(path);
             absolute_path.to_owned()
         } else {
