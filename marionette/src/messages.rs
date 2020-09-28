@@ -148,6 +148,9 @@ impl Serialize for WindowHandle {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         let mut ss = s.serialize_struct("WindowHandle", 1)?;
         ss.serialize_field("name", &self.0)?;
+        // Starting with firefox 81, name is ignored and
+        // handle is used instead
+        ss.serialize_field("handle", &self.0)?;
         ss.end()
     }
 }
