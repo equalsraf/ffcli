@@ -93,7 +93,7 @@ pub type Result<T> = std::result::Result<T, MarionetteError>;
 
 pub mod messages;
 use messages::*;
-pub use messages::{LogMsg, QueryMethod, WindowHandle, Script, Timeouts};
+pub use messages::{LogMsg, QueryMethod, WindowHandle, Script, Timeouts, Cookie};
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Compatibility {
