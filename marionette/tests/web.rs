@@ -143,10 +143,10 @@ fn script_timeout() {
 fn script_arguments_element() {
     let _ = env_logger::init();
     let mut conn = MarionetteConnection::connect(2828).unwrap();
-    conn.get("https://www.youtube.com/watch?v=dQw4w9WgXcQ").unwrap();
+    conn.get("https://www.duckduckgo.com").unwrap();
 
-    let elements = conn.find_elements(QueryMethod::CssSelector, "video", None).unwrap();
-    let mut script = Script::new("arguments[0].pause(); arguments[0].play(); return arguments[0].src");
+    let elements = conn.find_elements(QueryMethod::CssSelector, "img", None).unwrap();
+    let mut script = Script::new("return arguments[0].localName");
     script.arguments(&[&elements[0]]).unwrap();
     let res = conn.execute_script(&script).unwrap();
 
@@ -158,7 +158,7 @@ fn page_source() {
     let _ = env_logger::init();
     let mut conn = MarionetteConnection::connect(2828).unwrap();
 
-    conn.get("https://www.youtube.com/watch?v=dQw4w9WgXcQ").unwrap();
+    conn.get("https://www.duckduckgo.com").unwrap();
     let source = conn.get_page_source().unwrap();
     println!("{}", source);
 }
@@ -168,10 +168,10 @@ fn elements() {
     let _ = env_logger::init();
     let mut conn = MarionetteConnection::connect(2828).unwrap();
 
-    conn.get("https://www.youtube.com/watch?v=dQw4w9WgXcQ").unwrap();
+    conn.get("https://www.duckduckgo.com").unwrap();
     let elements = conn.find_elements(QueryMethod::CssSelector, "body", None).unwrap();
     assert!(!elements.is_empty());
-    let elements = conn.find_elements(QueryMethod::CssSelector, "video", Some(&elements[0])).unwrap();
+    let elements = conn.find_elements(QueryMethod::CssSelector, "img", Some(&elements[0])).unwrap();
     assert!(!elements.is_empty());
 
     let src = conn.get_element_attribute(&elements[0], "src").unwrap();
