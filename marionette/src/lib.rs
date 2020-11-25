@@ -133,7 +133,8 @@ impl MarionetteConnection {
             let options = NewSessionRequest::new();
             let (resp, compat) = match conn.new_session_webdriver(&options) {
                 Ok(resp) => (resp, conn.compatibility),
-                Err(_) => {
+                Err(err) => {
+                    debug!("Failed to establish new session, will retry with old protocol: {}", err);
                     // Retry with the new old protocol
                     (conn.new_session(&options)?, Compatibility::Marionette)
                 }
