@@ -367,3 +367,21 @@ impl FrameSwitch {
 pub struct AddonInstall<'a> {
     pub path: &'a Path,
 }
+
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+pub struct Cookie {
+    pub name: String,
+    pub value: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub domain: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub secure: Option<bool>,
+}
+
+#[derive(Serialize, Debug, PartialEq)]
+pub struct AddCookie<'a> {
+    pub cookie: &'a Cookie,
+}
+

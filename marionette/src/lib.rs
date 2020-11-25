@@ -509,6 +509,16 @@ impl MarionetteConnection {
             conn.execute_script(&script)
         })
     }
+
+    pub fn add_cookie(&mut self, cookie: &Cookie) -> Result<Empty> {
+        self.call("WebDriver:AddCookie", AddCookie { cookie: cookie })
+    }
+
+    /// Get a list of cookies
+    pub fn get_cookies(&mut self) -> Result<Vec<Cookie>> {
+        self.call("WebDriver:GetCookies", Empty {})
+    }
+
 }
 
 /// A helper struct to work with `ElementRef`

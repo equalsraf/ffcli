@@ -1,7 +1,7 @@
 extern crate marionette;
 use marionette::*;
 use marionette::messages::Script;
-use marionette::messages::Timeouts;
+use marionette::messages::{Timeouts, Cookie};
 extern crate env_logger;
 #[macro_use]
 extern crate log;
@@ -211,4 +211,27 @@ fn frames() {
     conn.switch_to_frame(None).unwrap();
     let _ = conn.get_active_frame().unwrap();
     conn.switch_to_parent_frame().unwrap();
+}
+
+#[test]
+fn cookies() {
+    let _ = env_logger::init();
+    let mut conn = MarionetteConnection::connect(2828).unwrap();
+
+    let cookie = Cookie {
+        name: "TESTCOOKIE".to_owned(),
+        value: "1234".to_owned(),
+        path: None,
+        domain: None,
+        secure: Some(true),
+    };
+    conn.add_cookie(&cookie).unwrap();
+
+    // Firefox will not return the exact same cookie we sent
+    // but the name/value should match
+    let cookies: Vec<_> = conn.get_cookies().unwrap()
+        .drain(..)
+        .map(|c| (c.name, c.value))
+        .collect();
+    assert!(cookies.contains(&("TESTCOOKIE".to_owned(), "1234".to_owned())));
 }
