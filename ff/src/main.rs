@@ -7,7 +7,7 @@ use std::panic;
 
 extern crate ff;
 extern crate marionette;
-use marionette::{MarionetteConnection, Element, JsonValue, WindowHandle, Result, Script};
+use marionette::{MarionetteConnection, Element, JsonValue, WindowHandle, Result, Script, Cookie};
 use marionette::QueryMethod::CssSelector;
 #[macro_use]
 extern crate clap;
@@ -177,6 +177,49 @@ fn cmd_windows(args: &ArgMatches) -> Result<()> {
     conn.switch_to_window(&prev)?;
     Ok(())
 }
+
+fn cmd_cookies(args: &ArgMatches) -> Result<()> {
+    let mut conn = connect_to_port(args);
+    let cookies = conn.get_cookies()?;
+    for cookie in cookies {
+        print!("{}=", cookie.name);
+        print!("{} -- ", cookie.value);
+
+        if let Some(ref domain) = cookie.domain {
+            print!("domain={} ", domain);
+        }
+        if let Some(ref path) = cookie.path {
+            print!("path={} ", path);
+        }
+        if let Some(ref sec) = cookie.secure {
+            print!("secure={}", sec);
+        }
+        println!("");
+    }
+    Ok(())
+}
+
+fn cmd_addcookie(args: &ArgMatches) -> Result<()> {
+    let mut conn = connect_to_port(args);
+
+    let name = args.value_of("NAME").unwrap();
+    let value = args.value_of("VALUE").unwrap();
+    let domain = args.value_of("DOMAIN");
+    let path = args.value_of("PATH");
+
+    let cookie = Cookie {
+        name: name.to_owned(),
+        value: value.to_owned(),
+        domain: domain.map(str::to_owned),
+        path: path.map(str::to_owned),
+        // TODO: add argument
+        secure: None,
+    };
+
+    conn.add_cookie(&cookie)?;
+    Ok(())
+}
+
 
 const FRAME_SELECTOR: &'static str = "iframe, frame";
 
@@ -376,6 +419,20 @@ fn main() {
         .subcommand(SubCommand::with_name("windows")
                     .arg(option_port())
                     .about("List browser windows"))
+        .subcommand(SubCommand::with_name("cookies")
+                    .arg(option_port())
+                    .about("List browser cookies"))
+        .subcommand(SubCommand::with_name("addcookie")
+                    .arg(option_port())
+                    .arg(Arg::with_name("NAME")
+                         .required(true))
+                    .arg(Arg::with_name("VALUE")
+                         .required(true))
+                    .arg(Arg::with_name("DOMAIN")
+                         .required(false))
+                    .arg(Arg::with_name("PATH")
+                         .required(false))
+                    .about("Set cookie"))
         .subcommand(SubCommand::with_name("switch")
                     .arg(option_port())
                     .arg(Arg::with_name("index")
@@ -527,6 +584,8 @@ it can be fixed - {}\n", ISSUES_URL);
                 .unwrap_or_exitmsg(-1, "Unable to switch window");
         }
         ("windows", Some(ref args)) => cmd_windows(args).unwrap_or_exit(-1),
+        ("cookies", Some(ref args)) => cmd_cookies(args).unwrap_or_exit(-1),
+        ("addcookie", Some(ref args)) => cmd_addcookie(args).unwrap_or_exit(-1),
         _ => panic!("Unsupported command"),
     }
 }
