@@ -94,6 +94,7 @@ fn cmd_start(args: &ArgMatches) -> Result<()> {
                                              args.value_of("PROFILE"),
                                              args.value_of("FIREFOX-BIN"),
                                              args.value_of("PREFSFILE"),
+                                             args.values_of("EXTRAPREFS").map(|v| v.collect()),
                                              args.value_of("SESSION"))?;
         debug!("New ff session {}", browser.session_file().to_string_lossy());
 
@@ -317,6 +318,11 @@ fn main() {
                          .takes_value(true)
                          .help("Firefox user.js file")
                          .long("user-js"))
+                    .arg(Arg::with_name("EXTRAPREFS")
+                         .takes_value(true)
+                         .multiple(true)
+                         .help("Additional Firefox profile files")
+                         .long("extra-prefs"))
                     .arg(Arg::with_name("URL")
                          .help("Open the given URL after starting"))
                     .about("Start a new browser instance"))

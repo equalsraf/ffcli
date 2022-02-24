@@ -30,9 +30,10 @@ impl Browser {
                                  profile_path: Option<P>,
                                  firefox_path: Option<P>,
                                  userjs_path: Option<P>,
+                                 extraprefs_paths: Option<Vec<P>>,
                                  session_name: Option<&str>) -> io::Result<Self> {
         let runner = match profile_path {
-            None => FirefoxRunner::tmp(port, firefox_path, userjs_path)?,
+            None => FirefoxRunner::tmp(port, firefox_path, userjs_path, extraprefs_paths)?,
             Some(path) => FirefoxRunner::from_path(path, port, firefox_path)?,
         };
 

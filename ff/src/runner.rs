@@ -53,13 +53,23 @@ impl FirefoxRunner {
     ///             the new profile
     pub fn tmp<P: AsRef<Path>>(port: u16,
                                firefox_path: Option<P>,
-                               user_prefs: Option<P>) -> IoResult<FirefoxRunner> {
+                               user_prefs: Option<P>,
+                               extraprefs: Option<Vec<P>>) -> IoResult<FirefoxRunner> {
 
         let profile_tmpdir = Temp::new_dir()?;
 
         if let Some(src) = user_prefs {
             fs::copy(src, profile_tmpdir.as_ref().join("user.js"))?;
         }
+
+        if let Some(files) = extraprefs {
+            for file in &files {
+                if let Some(filename) = file.as_ref().file_name() {
+                    fs::copy(file, profile_tmpdir.as_ref().join(filename))?;
+                }
+            }
+        }
+
 
         let mut profile = Profile::new_from_path(profile_tmpdir.as_ref())?;
 
