@@ -40,7 +40,8 @@ pub struct FirefoxRunner {
     pub process: process::Child,
     pub profile: Profile,
     port: u16,
-    profile_tmpdir: Option<Temp>,
+    #[allow(dead_code)]
+    tmpdir: Option<Temp>,
     drop_browser: bool,
 }
 
@@ -56,22 +57,24 @@ impl FirefoxRunner {
                                user_prefs: Option<P>,
                                extraprefs: Option<Vec<P>>) -> IoResult<FirefoxRunner> {
 
-        let profile_tmpdir = Temp::new_dir()?;
+        let tmpdir = Temp::new_dir()?;
+        let profile_dir = tmpdir.to_path_buf().join("ffprofile");
+        fs::create_dir_all(&profile_dir)?;
 
         if let Some(src) = user_prefs {
-            fs::copy(src, profile_tmpdir.as_ref().join("user.js"))?;
+            fs::copy(src, profile_dir.join("user.js"))?;
         }
 
         if let Some(files) = extraprefs {
             for file in &files {
                 if let Some(filename) = file.as_ref().file_name() {
-                    fs::copy(file, profile_tmpdir.as_ref().join(filename))?;
+                    fs::copy(file, profile_dir.join(filename))?;
                 }
             }
         }
 
 
-        let mut profile = Profile::new_from_path(profile_tmpdir.as_ref())?;
+        let mut profile = Profile::new_from_path(profile_dir.as_ref())?;
 
         {
             let prefs = profile.user_prefs()
@@ -108,7 +111,7 @@ impl FirefoxRunner {
             process: child,
             profile: profile,
             port: port,
-            profile_tmpdir: Some(profile_tmpdir),
+            tmpdir: Some(tmpdir),
             drop_browser: true,
         })
     }
@@ -140,7 +143,7 @@ impl FirefoxRunner {
             process: child,
             profile: profile,
             port: port,
-            profile_tmpdir: None,
+            tmpdir: None,
             drop_browser: true,
         })
     }
