@@ -1,0 +1,57 @@
+name: Cargo Build & Test
+
+on:
+  push:
+  pull_request:
+env: 
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build_and_test:
+    name: CI
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - FIREFOX: 68
+            FF_URL: "https://download-installer.cdn.mozilla.net/pub/firefox/releases/68.0/linux-x86_64/en-US/firefox-68.0.tar.bz2"
+            CHECKSUM: "bf89f1342cf29a95fdd979b3344777a5c73c6f96d5ea29261c35c2084901aac3  firefox-68.0.tar.bz2"
+          - FIREFOX: 78
+            FF_URL: "https://download-installer.cdn.mozilla.net/pub/firefox/releases/78.0/linux-x86_64/en-US/firefox-78.0.tar.bz2"
+            CHECKSUM: "bde6e020556a21561e4b8d7aaecf8db7077951f179b98ca5d0305435bc6802c9  firefox-78.0.tar.bz2"
+          - FIREFOX: 96
+            FF_URL: "https://download-installer.cdn.mozilla.net/pub/firefox/releases/96.0/linux-x86_64/en-US/firefox-96.0.tar.bz2"
+            CHECKSUM: "6f6cf571331e1a5f574116943b5de4cdd6c9072f6775ebec5dcb89991ed96b0a  firefox-96.0.tar.bz2"
+    env:
+      # firefox can only have one active connection/session
+      # disable threading in tests to avoid failures
+      RUST_TEST_THREADS: 1
+      RUST_LOG: marionette=debug,ff=debug,manual=debug
+      RUST_BACKTRACE: 1
+      MOZ_HEADLESS: 1
+    steps:
+      - uses: actions/checkout@v2
+      # get firefox version
+      - run: wget ${{matrix.FF_URL}}
+      - run: echo "${{matrix.CHECKSUM}}" | sha256sum -c
+      - run: tar axvf $(basename ${{matrix.FF_URL}})
+      - run: echo "$GITHUB_WORKSPACE/firefox" >> $GITHUB_PATH
+      - run: echo "$PATH"
+      - run: firefox -v
+      # rust update
+      - run: rustup update stable && rustup default stable
+      # Run a permanent firefox
+      - run: MOZ_HEADLESS=1 firefox --marionette 2>/dev/null &
+      - run: cargo build --verbose --all
+      - run: echo "$GITHUB_WORKSPACE/target/debug" >> $GITHUB_PATH
+      # Some tests in the manual require a running instance
+      - run: ff -vvv start --port 7766
+      - run: sleep 10
+      - run: cargo test --verbose
+        env:
+          FF_PORT: 7766
+      # bash tests
+      - run: ff/tests/runner.sh
+        env:
+          FF_PORT: 7766

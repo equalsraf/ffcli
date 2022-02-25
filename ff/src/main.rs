@@ -39,7 +39,7 @@ impl<T, E: std::error::Error> ExitOnError<T> for std::result::Result<T, E> {
             Ok(res) => res,
             Err(err) => {
                 error!("{}", err);
-                Self::exit(code, Some(err.description()));
+                Self::exit(code, Some(&err.to_string()));
             }
         }
     }
@@ -49,7 +49,7 @@ impl<T, E: std::error::Error> ExitOnError<T> for std::result::Result<T, E> {
             Ok(res) => res,
             Err(err) => {
                 error!("{}", err);
-                Self::exit(code, Some(&format!("{}: {}", msg, err.description())));
+                Self::exit(code, Some(&format!("{}: {}", msg, &err.to_string())));
             }
         }
     }
