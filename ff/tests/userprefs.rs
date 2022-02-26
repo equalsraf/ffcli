@@ -20,4 +20,5 @@ fn user_js_file() {
     let mut conn = MarionetteConnection::connect(browser.runner.port()).unwrap();
     let res = conn.get_pref("ff.testpref.canary").unwrap();
     assert_eq!(res, JsonValue::String("the canary is dead".to_string()));
+    conn.quit().unwrap();
 }
