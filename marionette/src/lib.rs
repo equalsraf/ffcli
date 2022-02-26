@@ -142,6 +142,18 @@ impl MarionetteConnection {
 
             conn.compatibility = compat;
             conn.timeouts = resp.capabilities.timeouts;
+
+            // Try to make sure the browser is live before returning
+            for retry in 0..4 {
+                match conn.get_title() {
+                    Ok(_) => break,
+                    Err(err) => {
+                        debug!("#{} Failed to connect to firefox({}): {}", retry, port, err);
+                        std::thread::sleep(std::time::Duration::new(retry*2, 0));
+                    }
+                }
+            }
+
             Ok(conn)
         } else {
             Err(MarionetteError::UnsupportedProtocolVersion)
