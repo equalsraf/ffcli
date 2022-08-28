@@ -85,7 +85,10 @@ fn cmd_start(args: &ArgMatches) -> Result<()> {
         .map(|ref s| u16::from_str(s).unwrap_or_exitmsg(-1, "Invalid port argument"));
 
     // Check TCP port availability
-    let portnum = ff::check_tcp_port(port_arg)?;
+    let portnum = match args.is_present("no-marionette") {
+        false => Some(ff::check_tcp_port(port_arg)?),
+        true => None,
+    };
 
     if args.is_present("no-fork") {
         setup_signals();
@@ -96,16 +99,26 @@ fn cmd_start(args: &ArgMatches) -> Result<()> {
                                              args.value_of("PREFSFILE"),
                                              args.values_of("EXTRAPREFS").map(|v| v.collect()),
                                              args.value_of("SESSION"))?;
-        debug!("New ff session {}", browser.session_file().to_string_lossy());
 
         let status = browser.runner.process.wait()?;
         info!("Firefox exited with status {}", status);
+
+        if args.is_present("rm-profile") {
+            if  let Some(profile_dir) = args.value_of("PROFILE") {
+                if let Err(err) = std::fs::remove_dir_all(profile_dir) {
+                    eprintln!("Failed to remove profile dir: {}", err);
+                }
+            }
+        }
+
     } else {
         let mut child_args: Vec<_> = env::args().collect();
         child_args.push("--no-fork".to_owned());
         if port_arg.is_none() {
-            child_args.push("--port".to_owned());
-            child_args.push(format!("{}", portnum));
+            if let Some(portnum) = portnum {
+                child_args.push("--port".to_owned());
+                child_args.push(format!("{}", portnum));
+            }
         }
 
         debug!("Spawning ff process {:?}", child_args);
@@ -114,12 +127,13 @@ fn cmd_start(args: &ArgMatches) -> Result<()> {
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .spawn()?;
-
-        let mut conn = ff::check_connection(portnum)?;
-        if let Some(url) = args.value_of("URL") {
-            conn.get(&convert_url(url))?;
+        if let Some(portnum) = portnum {
+            let mut conn = ff::check_connection(portnum)?;
+            if let Some(url) = args.value_of("URL") {
+                conn.get(&convert_url(url))?;
+            }
+            println!("{}", portnum);
         }
-        println!("{}", portnum);
     }
 
     Ok(())
@@ -261,7 +275,8 @@ fn connect_to_port(args: &ArgMatches) -> MarionetteConnection {
     let port_arg = args.value_of("PORT")
         .map(|val| val.to_owned())
         .or_else(|| env::var("FF_PORT").ok())
-        .map(|ref s| u16::from_str(s).unwrap_or_exitmsg(-1, "Invalid port argument"));
+        .map(|ref s| u16::from_str(s)
+             .unwrap_or_exitmsg(-1, "Invalid port argument"));
 
     let port = port_arg.unwrap_or_exitmsg(-1, "No port given, use --port or $FF_PORT");
     MarionetteConnection::connect(port)
@@ -300,6 +315,12 @@ fn main() {
                     .arg(Arg::with_name("no-fork")
                          .help("Run ff in the foreground")
                          .long("no-fork"))
+                    .arg(Arg::with_name("no-marionette")
+                         .help("Run without marionette")
+                         .long("no-marionette"))
+                    .arg(Arg::with_name("rm-profile")
+                         .help("Remove profile on exit")
+                         .long("rm-profile"))
                     .arg(Arg::with_name("PROFILE")
                          .takes_value(true)
                          .help("Profile path")

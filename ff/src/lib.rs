@@ -22,11 +22,11 @@ use runner::FirefoxRunner;
 
 pub struct Browser {
     pub runner: FirefoxRunner,
-    session_file: PathBuf,
+    session_file: Option<PathBuf>,
 }
 
 impl Browser {
-    pub fn start<P: AsRef<Path>>(port: u16,
+    pub fn start<P: AsRef<Path>>(port: Option<u16>,
                                  profile_path: Option<P>,
                                  firefox_path: Option<P>,
                                  userjs_path: Option<P>,
@@ -34,25 +34,31 @@ impl Browser {
                                  session_name: Option<&str>) -> io::Result<Self> {
         let runner = match profile_path {
             None => FirefoxRunner::tmp(port, firefox_path, userjs_path, extraprefs_paths)?,
-            Some(path) => FirefoxRunner::from_path(path, port, firefox_path)?,
+            Some(path) => FirefoxRunner::from_path(path, port, firefox_path, userjs_path, extraprefs_paths)?,
         };
 
-        let session_file = create_instance_file(session_name, port)?;
+        let session_file = match port {
+            Some(port) => Some(create_instance_file(session_name, port)?),
+            None => None,
+        };
+
         Ok(Browser {
             runner: runner,
             session_file: session_file,
         })
     }
 
-    pub fn session_file(&self) -> &Path {
-        self.session_file.as_path()
+    pub fn session_file(&self) -> Option<&Path> {
+        self.session_file.as_ref().map(|p| p.as_path())
     }
 }
 
 impl Drop for Browser {
     fn drop(&mut self) {
-        debug!("Removing session file");
-        let _ = fs::remove_file(&self.session_file);
+        if let Some(file) = &self.session_file {
+            debug!("Removing session file");
+            let _ = fs::remove_file(&file);
+        }
     }
 }
 

@@ -15,10 +15,13 @@ use mozprofile::profile::Profile;
 use mozprofile::preferences::Pref;
 
 #[cfg(unix)]
-fn spawn_firefox(firefox_bin: &Path, profile: &Path) -> IoResult<Child> {
-    Command::new(firefox_bin)
-        .arg("--marionette")
-        .arg("--profile")
+fn spawn_firefox(firefox_bin: &Path, profile: &Path, marionette: bool) -> IoResult<Child> {
+    let mut cmd = Command::new(firefox_bin);
+    if marionette {
+        cmd.arg("--marionette");
+    }
+
+    cmd.arg("--profile")
         .arg(profile)
         .stdout(Stdio::null()).stderr(Stdio::null())
         .env("MOZ_NO_REMOTE", "1").env("NO_EM_RESTART", "1")
@@ -27,9 +30,12 @@ fn spawn_firefox(firefox_bin: &Path, profile: &Path) -> IoResult<Child> {
 
 #[cfg(windows)]
 fn spawn_firefox(firefox_bin: &Path, profile: &Path) -> IoResult<Child> {
-    Command::new(firefox_bin)
-        .arg("-marionette")
-        .arg("-profile")
+    let mut cmd = Command::new(firefox_bin);
+    if marionette {
+        cmd.arg("-marionette");
+    }
+
+    cmd.arg("-profile")
         .arg(profile)
         .stdout(Stdio::null()).stderr(Stdio::null())
         .env("MOZ_NO_REMOTE", "1").env("NO_EM_RESTART", "1")
@@ -39,7 +45,7 @@ fn spawn_firefox(firefox_bin: &Path, profile: &Path) -> IoResult<Child> {
 pub struct FirefoxRunner {
     pub process: process::Child,
     pub profile: Profile,
-    port: u16,
+    port: Option<u16>,
     profile_tmpdir: Option<Temp>,
     drop_browser: bool,
 }
@@ -51,7 +57,7 @@ impl FirefoxRunner {
     /// firefox_path: is an optional path to the firefox executable
     /// user_prefs: is an optional path to a user.js file to be copied into
     ///             the new profile
-    pub fn tmp<P: AsRef<Path>>(port: u16,
+    pub fn tmp<P: AsRef<Path>>(port: Option<u16>,
                                firefox_path: Option<P>,
                                user_prefs: Option<P>,
                                extraprefs: Option<Vec<P>>) -> IoResult<FirefoxRunner> {
@@ -76,22 +82,10 @@ impl FirefoxRunner {
         {
             let prefs = profile.user_prefs()
                 .map_err(|err| IoError::new(ErrorKind::Other, format!("{}", err)))?;
-            prefs.insert("marionette.port", Pref::new(port as i64));
-            prefs.insert("marionette.defaultPrefs.port", Pref::new(port as i64));
-            // Startup with a blank page
-            prefs.insert("browser.startup.page", Pref::new(0 as i64));
-            prefs.insert("browser.startup.homepage_override.mstone", Pref::new("ignore"));
-
-            // Disable the UI tour
-            prefs.insert("browser.uitour.enabled", Pref::new(false));
-            // Disable first-run welcome page
-            prefs.insert("startup.homepage_welcome_url", Pref::new("about:blank"));
-            prefs.insert("startup.homepage_welcome_url.additional", Pref::new(""));
-
-            // Disable autoplay
-            prefs.insert("media.autoplay.enabled", Pref::new(false));
-            // Enable private browsing
-            prefs.insert("browser.privatebrowsing.autostart", Pref::new(false));
+            if let Some(port) = port {
+                prefs.insert("marionette.port", Pref::new(port as i64));
+                prefs.insert("marionette.defaultPrefs.port", Pref::new(port as i64));
+            }
 
             prefs.write()?;
         }
@@ -100,9 +94,9 @@ impl FirefoxRunner {
             .map(|p| p.as_ref().to_owned())
             .or(firefox_default_path())
             .unwrap_or(PathBuf::from("firefox"));
-        let child = spawn_firefox(&bin, &profile.path)?;
+        let child = spawn_firefox(&bin, &profile.path, port.is_some())?;
 
-        info!("Started firefox on port {}", port);
+        info!("Started firefox: {:?}", port);
 
         Ok(FirefoxRunner {
             process: child,
@@ -115,12 +109,28 @@ impl FirefoxRunner {
 
     /// Starts a new firefox instance using the profile at the given path, if the
     /// path does not exist it is created.
-    pub fn from_path<P: AsRef<Path>>(profile_path: P, port: u16, firefox_path: Option<P>) -> IoResult<FirefoxRunner> {
+    pub fn from_path<P: AsRef<Path>>(profile_path: P,
+                                     port: Option<u16>,
+                                     firefox_path: Option<P>,
+                                     user_prefs: Option<P>,
+                                     extraprefs: Option<Vec<P>>) -> IoResult<FirefoxRunner> {
         fs::create_dir_all(&profile_path)?;
+
+        if let Some(src) = user_prefs {
+            fs::copy(src, profile_path.as_ref().join("user.js"))?;
+        }
+
+        if let Some(files) = extraprefs {
+            for file in &files {
+                if let Some(filename) = file.as_ref().file_name() {
+                    fs::copy(file, profile_path.as_ref().join(filename))?;
+                }
+            }
+        }
 
         let mut profile = Profile::new_from_path(profile_path.as_ref())?;
 
-        {
+        if let Some(port) = port {
             let prefs = profile.user_prefs()
                 .map_err(|err| IoError::new(ErrorKind::Other, format!("{}", err)))?;
             prefs.insert("marionette.port", Pref::new(port as i64));
@@ -132,9 +142,9 @@ impl FirefoxRunner {
             .map(|p| p.as_ref().to_owned())
             .or(firefox_default_path())
             .unwrap_or(PathBuf::from("firefox"));
-        let child = spawn_firefox(&bin, &profile.path)?;
+        let child = spawn_firefox(&bin, &profile.path, port.is_some())?;
 
-        info!("Started firefox on port {}", port);
+        info!("Started firefox: {:?}", port);
 
         Ok(FirefoxRunner {
             process: child,
@@ -146,7 +156,7 @@ impl FirefoxRunner {
     }
 
     /// The marionette port the browser is listening on
-    pub fn port(&self) -> u16 { self.port }
+    pub fn port(&self) -> Option<u16> { self.port }
 
     /// If true (the default) the browser process will be killed
     /// on Drop.
