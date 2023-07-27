@@ -14,7 +14,7 @@ install:
   - choco install firefox 
   - curl -sSf -o rustup-init.exe https://win.rustup.rs
   - rustup-init.exe --default-host %TARGET% --default-toolchain %CHANNEL% -y
-  - set PATH=%PATH%;C:\Users\appveyor\.cargo\bin;C:\Program Files (x86)\Mozilla Firefox;
+  - set PATH=%PATH%;C:\Users\appveyor\.cargo\bin;C:\Program Files\Mozilla Firefox;
   - rustc -Vv
   - cargo -V
 
