@@ -29,7 +29,7 @@ fn spawn_firefox(firefox_bin: &Path, profile: &Path, marionette: bool) -> IoResu
 }
 
 #[cfg(windows)]
-fn spawn_firefox(firefox_bin: &Path, profile: &Path) -> IoResult<Child> {
+fn spawn_firefox(firefox_bin: &Path, profile: &Path, marionette: bool) -> IoResult<Child> {
     let mut cmd = Command::new(firefox_bin);
     if marionette {
         cmd.arg("-marionette");
